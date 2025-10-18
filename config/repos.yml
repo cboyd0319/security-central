@@ -1,0 +1,115 @@
+# Repository Configuration
+# Defines all repositories to monitor and their security policies
+
+repositories:
+  - name: PoshGuard
+    url: https://github.com/cboyd0319/PoshGuard
+    tech_stack:
+      - powershell
+      - pwsh_modules
+    security_tools:
+      - PSScriptAnalyzer
+      - Pester
+    auto_merge_rules:
+      patch: true          # Auto-merge patch updates (1.0.X)
+      minor: false         # Require review for minor (1.X.0)
+      security: true       # Always auto-merge security fixes
+      breaking: false      # Never auto-merge breaking changes
+    notification_threshold: HIGH  # Only notify for HIGH+ severity
+
+  - name: BazBOM
+    url: https://github.com/cboyd0319/BazBOM
+    tech_stack:
+      - java
+      - kotlin
+      - scala
+      - python
+      - bazel
+    security_tools:
+      - OWASP Dependency-Check
+      - OSV Scanner
+      - pip-audit
+    auto_merge_rules:
+      patch: true
+      minor: false
+      security: true
+      breaking: false
+    notification_threshold: HIGH
+
+  - name: JobSentinel
+    url: https://github.com/cboyd0319/JobSentinel
+    tech_stack:
+      - python
+      - react
+      - npm
+    security_tools:
+      - Bandit
+      - Safety
+      - pip-audit
+      - npm audit
+    auto_merge_rules:
+      patch: true
+      minor: false
+      security: true
+      breaking: false
+    notification_threshold: HIGH
+
+  - name: PyGuard
+    url: https://github.com/cboyd0319/PyGuard
+    tech_stack:
+      - python
+    security_tools:
+      - Self-scan (pyguard .)
+      - Bandit
+      - Safety
+      - pip-audit
+    auto_merge_rules:
+      patch: true
+      minor: true          # Your tool, safer to auto-update
+      security: true
+      breaking: false
+    notification_threshold: MEDIUM  # More sensitive for your own tool
+
+# Global notification settings
+notifications:
+  slack:
+    enabled: true
+    webhook_url_secret: SLACK_SECURITY_WEBHOOK
+    channels:
+      critical: '#security-critical'
+      high: '#security-alerts'
+      daily_digest: '#security-daily'
+
+  email:
+    enabled: false  # Set to true if you want email alerts
+    recipients:
+      - security-alerts@yourdomain.com
+    smtp_host: smtp.gmail.com
+    smtp_port: 587
+    from_email: security-bot@yourdomain.com
+
+  pagerduty:
+    enabled: false  # Enable for vacation/critical alerts
+    integration_key_secret: PAGERDUTY_INTEGRATION_KEY
+    severity_threshold: CRITICAL  # Only page for CRITICAL issues
+
+# Scanning schedule
+schedule:
+  daily_scan: '0 9 * * *'        # 9 AM UTC daily
+  weekly_audit: '0 2 * * 0'      # 2 AM UTC Sunday
+  emergency_check: '*/15 * * * *'  # Every 15 minutes (disabled by default)
+
+# Auto-merge safety checks
+safety_checks:
+  require_ci_pass: true
+  require_no_breaking_changes: true
+  max_version_jump:
+    major: 0  # Don't auto-merge major version jumps
+    minor: 2  # Max 2 minor versions at once
+    patch: 10 # Max 10 patch versions at once
+
+  # Wait periods before auto-merge
+  wait_periods:
+    patch: 3600      # 1 hour (let CI finish)
+    minor: 86400     # 24 hours (let community find issues)
+    security: 3600   # 1 hour for security fixes

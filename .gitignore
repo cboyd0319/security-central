@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Cloned repositories (don't commit monitored repos)
+repos/
+
+# Scan results (generated files)
+findings.json
+triage.json
+findings.sarif
+*.sarif
+test-*.json
+pre-vacation-scan.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Secrets (should be in GitHub Secrets, not files)
+.env
+secrets.yml
+*_secret.yml
+
+# Temporary files
+tmp/
+*.tmp

@@ -1,0 +1,94 @@
+name: Weekly Dependency Audit
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'  # 2 AM UTC every Sunday
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  deep-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install audit tools
+        run: |
+          pip install pyyaml pip-audit safety bandit semgrep
+          npm install -g npm-audit-resolver
+
+      - name: Clone all repositories
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/clone_repos.py
+
+      - name: Run comprehensive dependency audit
+        run: |
+          python scripts/comprehensive_audit.py \
+            --output weekly-audit.json \
+            --include-license-check \
+            --include-maintenance-check \
+            --include-security-check
+
+      - name: Check for outdated dependencies
+        run: |
+          python scripts/check_outdated.py \
+            weekly-audit.json \
+            --output outdated-report.json
+
+      - name: Analyze dependency health
+        run: |
+          python scripts/analyze_dependency_health.py \
+            weekly-audit.json \
+            --output health-report.json
+
+      - name: Generate weekly summary
+        run: |
+          python scripts/generate_weekly_summary.py \
+            weekly-audit.json \
+            health-report.json \
+            outdated-report.json \
+            --output docs/reports/weekly/$(date +%Y-W%V)-summary.md
+
+      - name: Commit weekly report
+        run: |
+          git config user.name "Security Bot"
+          git config user.email "security-bot@github.com"
+          git add docs/reports/weekly/
+          git commit -m "chore: weekly audit report $(date +%Y-W%V)" || true
+          git push || true
+
+      - name: Create issues for major concerns
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/create_audit_issues.py health-report.json
+
+      - name: Send weekly digest to Slack
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_SECURITY_WEBHOOK }}
+        run: |
+          python scripts/send_weekly_digest.py \
+            --report weekly-audit.json \
+            --slack-webhook "$SLACK_WEBHOOK"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-audit-${{ github.run_id }}
+          path: |
+            weekly-audit.json
+            health-report.json
+            outdated-report.json
+          retention-days: 365

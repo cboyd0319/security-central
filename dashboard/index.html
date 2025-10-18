@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Central - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            line-height: 1.6;
+        }
+
+        header {
+            background: #161b22;
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid #30363d;
+        }
+
+        header h1 {
+            color: #58a6ff;
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .last-updated {
+            color: #8b949e;
+            font-size: 0.9rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+
+        .metric-card h3 {
+            color: #8b949e;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-value.good { color: #3fb950; }
+        .metric-value.warning { color: #d29922; }
+        .metric-value.critical { color: #f85149; }
+
+        .metric-trend {
+            font-size: 0.9rem;
+            color: #8b949e;
+        }
+
+        .section {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .section h2 {
+            color: #c9d1d9;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        .repo-list {
+            list-style: none;
+        }
+
+        .repo-item {
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            background: #0d1117;
+            border-radius: 6px;
+            border-left: 3px solid transparent;
+        }
+
+        .repo-item.healthy { border-left-color: #3fb950; }
+        .repo-item.warning { border-left-color: #d29922; }
+        .repo-item.critical { border-left-color: #f85149; }
+
+        .repo-name {
+            font-weight: 600;
+            color: #c9d1d9;
+            margin-bottom: 0.5rem;
+        }
+
+        .repo-stats {
+            display: flex;
+            gap: 2rem;
+            font-size: 0.9rem;
+            color: #8b949e;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge.critical { background: #f851491a; color: #f85149; }
+        .badge.high { background: #d299221a; color: #d29922; }
+        .badge.good { background: #3fb9501a; color: #3fb950; }
+
+        .chart {
+            height: 200px;
+            margin: 1rem 0;
+            background: #0d1117;
+            border-radius: 6px;
+            padding: 1rem;
+            display: flex;
+            align-items: flex-end;
+            gap: 0.5rem;
+        }
+
+        .bar {
+            flex: 1;
+            background: linear-gradient(180deg, #58a6ff 0%, #1f6feb 100%);
+            border-radius: 4px 4px 0 0;
+            transition: all 0.3s ease;
+        }
+
+        .bar:hover {
+            opacity: 0.8;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: #8b949e;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🔒 Security Central Dashboard</h1>
+        <div class="last-updated" id="last-updated">Loading...</div>
+    </header>
+
+    <div class="container">
+        <!-- Overall Metrics -->
+        <div class="metric-grid">
+            <div class="metric-card">
+                <h3>Security Score</h3>
+                <div class="metric-value good" id="security-score">--</div>
+                <div class="metric-trend">Out of 100</div>
+            </div>
+
+            <div class="metric-card">
+                <h3>Critical Issues</h3>
+                <div class="metric-value" id="critical-count">--</div>
+                <div class="metric-trend">Requiring immediate action</div>
+            </div>
+
+            <div class="metric-card">
+                <h3>High Severity</h3>
+                <div class="metric-value" id="high-count">--</div>
+                <div class="metric-trend">Fix within 24 hours</div>
+            </div>
+
+            <div class="metric-card">
+                <h3>Time to Patch</h3>
+                <div class="metric-value good" id="ttp">--</div>
+                <div class="metric-trend">Average for CRITICAL</div>
+            </div>
+        </div>
+
+        <!-- Repository Health -->
+        <div class="section">
+            <h2>Repository Health</h2>
+            <ul class="repo-list" id="repo-list">
+                <li>Loading...</li>
+            </ul>
+        </div>
+
+        <!-- Recent Scans -->
+        <div class="section">
+            <h2>Recent Scan Activity</h2>
+            <div class="chart" id="scan-chart"></div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Security Central v1.0 | Auto-refreshes every 5 minutes</p>
+        <p>🤖 Keeping your repos secure 24/7</p>
+    </footer>
+
+    <script>
+        // Load and display security data
+        async function loadDashboard() {
+            try {
+                // In production, this would fetch from GitHub API or workflow artifacts
+                // For now, show sample data
+                updateLastRefresh();
+                updateMetrics();
+                updateRepoList();
+                updateChart();
+            } catch (error) {
+                console.error('Failed to load dashboard:', error);
+            }
+        }
+
+        function updateLastRefresh() {
+            const now = new Date().toUTCString();
+            document.getElementById('last-updated').textContent = `Last updated: ${now}`;
+        }
+
+        function updateMetrics() {
+            // Sample data - replace with real data from GitHub Actions artifacts
+            const metrics = {
+                securityScore: 87,
+                critical: 0,
+                high: 2,
+                timeToPatc: '1.2h'
+            };
+
+            const scoreEl = document.getElementById('security-score');
+            scoreEl.textContent = metrics.securityScore;
+            scoreEl.className = 'metric-value ' + (metrics.securityScore >= 80 ? 'good' : metrics.securityScore >= 60 ? 'warning' : 'critical');
+
+            const criticalEl = document.getElementById('critical-count');
+            criticalEl.textContent = metrics.critical;
+            criticalEl.className = 'metric-value ' + (metrics.critical === 0 ? 'good' : 'critical');
+
+            const highEl = document.getElementById('high-count');
+            highEl.textContent = metrics.high;
+            highEl.className = 'metric-value ' + (metrics.high === 0 ? 'good' : 'warning');
+
+            document.getElementById('ttp').textContent = metrics.timeToPatc;
+        }
+
+        function updateRepoList() {
+            const repos = [
+                { name: 'PoshGuard', status: 'healthy', vulns: 0, coverage: 82, lastScan: '2 hours ago' },
+                { name: 'BazBOM', status: 'healthy', vulns: 1, coverage: 76, lastScan: '2 hours ago' },
+                { name: 'JobSentinel', status: 'warning', vulns: 2, coverage: 73, lastScan: '2 hours ago' },
+                { name: 'PyGuard', status: 'healthy', vulns: 0, coverage: 82, lastScan: '2 hours ago' }
+            ];
+
+            const list = document.getElementById('repo-list');
+            list.innerHTML = repos.map(repo => `
+                <li class="repo-item ${repo.status}">
+                    <div class="repo-name">
+                        ${repo.name}
+                        <span class="badge ${repo.vulns === 0 ? 'good' : repo.vulns <= 2 ? 'high' : 'critical'}">
+                            ${repo.vulns} issues
+                        </span>
+                    </div>
+                    <div class="repo-stats">
+                        <span>Coverage: ${repo.coverage}%</span>
+                        <span>Last scan: ${repo.lastScan}</span>
+                    </div>
+                </li>
+            `).join('');
+        }
+
+        function updateChart() {
+            // Sample scan frequency chart
+            const data = [85, 92, 78, 95, 88, 90, 87];
+            const chart = document.getElementById('scan-chart');
+
+            const maxValue = Math.max(...data);
+            chart.innerHTML = data.map(value => {
+                const height = (value / maxValue) * 100;
+                return `<div class="bar" style="height: ${height}%"></div>`;
+            }).join('');
+        }
+
+        // Auto-refresh every 5 minutes
+        loadDashboard();
+        setInterval(loadDashboard, 5 * 60 * 1000);
+    </script>
+</body>
+</html>

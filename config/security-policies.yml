@@ -1,0 +1,124 @@
+# Security Policies
+# Defines what constitutes a security issue and how to handle it
+
+severity_mapping:
+  CRITICAL:
+    cvss_score: 9.0-10.0
+    action: immediate_patch
+    auto_merge: true
+    notification: pagerduty
+    max_response_time: 2h
+
+  HIGH:
+    cvss_score: 7.0-8.9
+    action: patch_within_24h
+    auto_merge: true
+    notification: slack
+    max_response_time: 24h
+
+  MEDIUM:
+    cvss_score: 4.0-6.9
+    action: patch_within_week
+    auto_merge: false
+    notification: slack
+    max_response_time: 7d
+
+  LOW:
+    cvss_score: 0.1-3.9
+    action: patch_next_release
+    auto_merge: false
+    notification: weekly_digest
+    max_response_time: 30d
+
+# CVE sources
+cve_sources:
+  - name: NVD
+    url: https://nvd.nist.gov/
+    enabled: true
+    priority: 1
+
+  - name: OSV
+    url: https://osv.dev/
+    enabled: true
+    priority: 2
+
+  - name: GitHub Security Advisories
+    url: https://github.com/advisories
+    enabled: true
+    priority: 3
+
+  - name: Snyk
+    url: https://snyk.io/vuln/
+    enabled: false  # Requires API key
+    priority: 4
+
+# Package ecosystems to monitor
+ecosystems:
+  python:
+    sources:
+      - PyPI
+      - conda-forge
+    tools:
+      - safety
+      - pip-audit
+      - osv-scanner
+    ignore_packages: []  # Add packages to ignore updates
+
+  npm:
+    sources:
+      - npmjs
+    tools:
+      - npm-audit
+      - osv-scanner
+    ignore_packages:
+      - leftpad  # Example: ignore specific packages
+
+  maven:
+    sources:
+      - Maven Central
+    tools:
+      - owasp-dependency-check
+      - osv-scanner
+    ignore_packages: []
+
+  powershell:
+    sources:
+      - PSGallery
+    tools:
+      - PSScriptAnalyzer
+    ignore_packages: []
+
+# False positive management
+false_positives:
+  # Add known false positives here
+  # Format: CVE-YYYY-XXXXX
+  ignore_cves: []
+    # Example:
+    # - CVE-2023-12345  # Not applicable to our use case
+
+# Dependency health checks
+dependency_health:
+  check_for:
+    - outdated_packages
+    - deprecated_packages
+    - unmaintained_packages
+    - license_violations
+
+  license_policy:
+    allowed:
+      - MIT
+      - Apache-2.0
+      - BSD-3-Clause
+      - BSD-2-Clause
+      - ISC
+    review_required:
+      - GPL-3.0
+      - LGPL-3.0
+      - AGPL-3.0
+    denied:
+      - WTFPL  # Example of denied license
+
+  maintenance_thresholds:
+    last_commit_days: 730       # Flag if no commits in 2 years
+    last_release_days: 365      # Flag if no release in 1 year
+    open_issues_count: 100      # Flag if >100 open issues
