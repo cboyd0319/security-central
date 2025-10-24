@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/brand/security-central-logo.svg" width="120" alt="Security Central logo">
+  <img src="docs/images/logo.png" width="120" alt="Security Central logo">
   <h1>Security Central</h1>
   <p><strong>Automated security monitoring for multi-repo projects</strong></p>
   <p>Daily scans • Auto-patching • Emergency response • Zero manual work</p>
