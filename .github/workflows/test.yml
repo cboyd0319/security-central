@@ -24,12 +24,20 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
+          cache-dependency-path: requirements-prod.txt
 
       - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install -r requirements-prod.txt
           pip install pytest pytest-cov pytest-mock
+
+      - name: Verify critical dependencies
+        run: |
+          python -c "import pydantic; print('✓ pydantic installed')"
+          python -c "import psutil; print('✓ psutil installed')"
+          python -c "import yaml; print('✓ yaml installed')"
+          python -c "import pytest; print('✓ pytest installed')"
 
       - name: Run tests with coverage
         run: |
