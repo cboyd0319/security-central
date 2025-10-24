@@ -7,6 +7,7 @@ import json
 import argparse
 from datetime import datetime
 from pathlib import Path
+from typing import Dict
 
 
 def generate_report(triage_file: str, output_file: str):

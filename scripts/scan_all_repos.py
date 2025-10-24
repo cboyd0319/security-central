@@ -20,16 +20,40 @@ class MultiRepoScanner:
 
     def scan_all(self) -> Dict:
         """Run all security scans across all repos."""
+        scanned_count = 0
+        
         for repo in self.config['repositories']:
+            repo_dir = f"repos/{repo['name']}"
+            
+            # Skip if repo directory doesn't exist
+            if not Path(repo_dir).exists():
+                print(f"\n⊘ Skipping {repo['name']} (not cloned)")
+                continue
+            
             print(f"\n{'='*60}")
             print(f"Scanning {repo['name']}")
             print(f"{'='*60}")
             repo_findings = self.scan_repo(repo)
             self.findings.extend(repo_findings)
+            scanned_count += 1
+
+        # If no external repos were scanned, scan security-central itself as a fallback
+        if scanned_count == 0:
+            print(f"\n{'='*60}")
+            print(f"Scanning security-central (self-scan)")
+            print(f"{'='*60}")
+            self_repo = {
+                'name': 'security-central',
+                'tech_stack': ['python']
+            }
+            # Scan current directory
+            self_findings = self.scan_repo_direct('.', 'security-central', ['python'])
+            self.findings.extend(self_findings)
+            scanned_count = 1
 
         return {
             'scan_time': datetime.utcnow().isoformat(),
-            'total_repos': len(self.config['repositories']),
+            'total_repos': scanned_count,
             'findings': self.findings,
             'summary': self.generate_summary()
         }
@@ -37,23 +61,27 @@ class MultiRepoScanner:
     def scan_repo(self, repo: Dict) -> List[Dict]:
         """Scan a single repository."""
         repo_dir = f"repos/{repo['name']}"
+        return self.scan_repo_direct(repo_dir, repo['name'], repo['tech_stack'])
+
+    def scan_repo_direct(self, repo_dir: str, repo_name: str, tech_stack: List[str]) -> List[Dict]:
+        """Scan a repository directory directly."""
         findings = []
 
         # Python projects
-        if 'python' in repo['tech_stack']:
-            findings.extend(self.scan_python(repo_dir, repo['name']))
+        if 'python' in tech_stack:
+            findings.extend(self.scan_python(repo_dir, repo_name))
 
         # Java/Kotlin/Scala projects
-        if any(lang in repo['tech_stack'] for lang in ['java', 'kotlin', 'scala']):
-            findings.extend(self.scan_jvm(repo_dir, repo['name']))
+        if any(lang in tech_stack for lang in ['java', 'kotlin', 'scala']):
+            findings.extend(self.scan_jvm(repo_dir, repo_name))
 
         # JavaScript/npm projects
-        if any(lang in repo['tech_stack'] for lang in ['npm', 'react']):
-            findings.extend(self.scan_npm(repo_dir, repo['name']))
+        if any(lang in tech_stack for lang in ['npm', 'react']):
+            findings.extend(self.scan_npm(repo_dir, repo_name))
 
         # PowerShell projects
-        if 'powershell' in repo['tech_stack']:
-            findings.extend(self.scan_powershell(repo_dir, repo['name']))
+        if 'powershell' in tech_stack:
+            findings.extend(self.scan_powershell(repo_dir, repo_name))
 
         return findings
 

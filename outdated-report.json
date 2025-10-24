@@ -1,0 +1,16 @@
+{
+  "check_time": "2025-10-24T15:54:51.102129+00:00",
+  "repositories": [
+    {
+      "name": "security-central",
+      "outdated_packages": [],
+      "outdated_count": 0
+    }
+  ],
+  "summary": {
+    "total_outdated": 0,
+    "major_updates": 0,
+    "minor_updates": 0,
+    "patch_updates": 0
+  }
+}
