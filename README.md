@@ -11,6 +11,8 @@
 [![Weekly Audit](https://github.com/cboyd0319/security-central/actions/workflows/weekly-audit.yml/badge.svg)](https://github.com/cboyd0319/security-central/actions/workflows/weekly-audit.yml)
 [![CodeQL](https://github.com/cboyd0319/security-central/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/cboyd0319/security-central/actions/workflows/codeql-analysis.yml)
 [![OSSF Scorecard](https://github.com/cboyd0319/security-central/actions/workflows/scorecard.yml/badge.svg)](https://github.com/cboyd0319/security-central/actions/workflows/scorecard.yml)
+[![Test & Coverage](https://github.com/cboyd0319/security-central/actions/workflows/test.yml/badge.svg)](https://github.com/cboyd0319/security-central/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/cboyd0319/security-central/branch/main/graph/badge.svg)](https://codecov.io/gh/cboyd0319/security-central)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 [Quickstart](#-quickstart) •
