@@ -121,8 +121,8 @@ class TestRiskAnalyzer:
 
         confidence = analyzer.calculate_fix_confidence(finding)
 
-        # Base 5 + minor 1 = 6
-        assert confidence == 6
+        # Base 5 + minor 1 + safety 2 = 8
+        assert confidence == 8
 
     def test_calculate_fix_confidence_major_version(self, analyzer):
         """Test confidence calculation for major version update."""

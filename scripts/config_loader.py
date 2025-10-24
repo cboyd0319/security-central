@@ -61,11 +61,10 @@ class SecurityCentralConfig(BaseModel):
 
         try:
             return cls(**data)
-        except ValidationError as e:
-            raise ValidationError(
-                f"Invalid configuration in {config_path}:\n{e}\n"
-                f"Please check that all required fields are present and valid."
-            )
+        except ValidationError:
+            # Let ValidationError propagate naturally for testing
+            # The error message is already descriptive from Pydantic
+            raise
 
 class ReposConfig(BaseModel):
     """Load repository definitions from repos.yml"""
@@ -101,11 +100,10 @@ class ReposConfig(BaseModel):
 
         try:
             return cls(**data)
-        except ValidationError as e:
-            raise ValidationError(
-                f"Invalid repository configuration in {config_path}:\n{e}\n"
-                f"Please check that all required fields are present and valid."
-            )
+        except ValidationError:
+            # Let ValidationError propagate naturally for testing
+            # The error message is already descriptive from Pydantic
+            raise
 
 # Usage example:
 # scanning_config = SecurityCentralConfig.load()
