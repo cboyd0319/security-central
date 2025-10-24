@@ -38,13 +38,13 @@ jobs:
           if [ ! -f tests/test_sample.py ]; then
             cat > tests/test_sample.py << 'EOF'
           """Sample tests for Security Central."""
-          
+
           def test_placeholder():
               """Placeholder test that always passes."""
               assert True
           EOF
           fi
-          
+
           # Run pytest with coverage
           pytest --cov=scripts --cov-report=xml --cov-report=term tests/ || true
 
