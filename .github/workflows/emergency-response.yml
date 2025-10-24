@@ -42,7 +42,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pyyaml requests jinja2
+          pip install --upgrade pip
+          pip install -r requirements-prod.txt
+          pip install jinja2
 
       - name: Assess impact across all repos
         id: assess

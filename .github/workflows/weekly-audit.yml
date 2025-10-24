@@ -24,7 +24,9 @@ jobs:
 
       - name: Install audit tools
         run: |
-          pip install pyyaml pip-audit safety bandit semgrep
+          pip install --upgrade pip
+          pip install -r requirements-prod.txt
+          pip install semgrep
           npm install -g npm-audit-resolver
 
       - name: Clone all repositories
