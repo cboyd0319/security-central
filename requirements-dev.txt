@@ -10,6 +10,9 @@ pytest-cov>=5.0.0          # Coverage reporting
 pytest-mock>=3.14.0        # Mocking for tests
 pytest-xdist>=3.6.1        # Parallel test execution
 
+# Dependencies for testing scripts
+PyGithub>=2.1.1            # GitHub API library (for create_issues.py tests)
+
 # Type checking
 mypy>=1.11.2               # Static type checker
 types-pyyaml>=6.0.12       # Type stubs for PyYAML
