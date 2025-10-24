@@ -5,30 +5,48 @@ Analyze and triage security findings by risk level.
 
 import json
 import argparse
-from typing import Dict, List
+from typing import Dict, List, Tuple, Optional, Any
 from datetime import datetime, timezone
 
 
 class RiskAnalyzer:
-    def __init__(self, config_path: str = 'config/security-policies.yml'):
-        self.config_path = config_path
+    """Analyze and triage security findings by risk level and auto-fix potential.
 
-    def analyze(self, findings_file: str) -> Dict:
-        """Analyze findings and prioritize by risk."""
+    Attributes:
+        config_path: Path to security policies configuration file
+    """
+
+    def __init__(self, config_path: str = 'config/security-policies.yml') -> None:
+        """Initialize the risk analyzer.
+
+        Args:
+            config_path: Path to security policies configuration file
+        """
+        self.config_path: str = config_path
+
+    def analyze(self, findings_file: str) -> Dict[str, Any]:
+        """Analyze findings and prioritize by risk.
+
+        Args:
+            findings_file: Path to JSON file containing security findings
+
+        Returns:
+            Dictionary containing triaged findings, auto-fixes, and recommendations
+        """
         with open(findings_file) as f:
-            data = json.load(f)
+            data: Dict[str, Any] = json.load(f)
 
-        findings = data.get('findings', [])
+        findings: List[Dict[str, Any]] = data.get('findings', [])
 
         # Triage findings
-        triaged = {
+        triaged: Dict[str, List[Dict[str, Any]]] = {
             'critical': [],
             'high': [],
             'medium': [],
             'low': []
         }
 
-        auto_fixes = []
+        auto_fixes: List[Dict[str, Any]] = []
 
         for finding in findings:
             severity = finding.get('severity', 'MEDIUM')
@@ -61,8 +79,15 @@ class RiskAnalyzer:
             'recommendations': self.generate_recommendations(triaged, auto_fixes)
         }
 
-    def is_auto_fixable(self, finding: Dict) -> bool:
-        """Determine if a finding can be auto-fixed."""
+    def is_auto_fixable(self, finding: Dict[str, Any]) -> bool:
+        """Determine if a finding can be auto-fixed.
+
+        Args:
+            finding: Security finding dictionary
+
+        Returns:
+            True if the finding can be automatically fixed
+        """
         # Dependency vulnerabilities with known fixed versions
         if finding['type'] in ['python_dependency', 'npm_dependency', 'jvm_dependency']:
             if finding.get('fixed_in'):
@@ -70,9 +95,16 @@ class RiskAnalyzer:
 
         return False
 
-    def calculate_fix_confidence(self, finding: Dict) -> int:
-        """Calculate confidence score (0-10) for auto-fix."""
-        confidence = 5  # Base score
+    def calculate_fix_confidence(self, finding: Dict[str, Any]) -> int:
+        """Calculate confidence score (0-10) for auto-fix.
+
+        Args:
+            finding: Security finding dictionary
+
+        Returns:
+            Confidence score from 0 (low) to 10 (high)
+        """
+        confidence: int = 5  # Base score
 
         # Higher confidence for patch versions
         fixed_version = str(finding.get('fixed_in', [''])[0])
@@ -95,8 +127,15 @@ class RiskAnalyzer:
 
         return min(10, max(0, confidence))
 
-    def is_safe_to_auto_merge(self, finding: Dict) -> bool:
-        """Determine if fix is safe to auto-merge."""
+    def is_safe_to_auto_merge(self, finding: Dict[str, Any]) -> bool:
+        """Determine if fix is safe to auto-merge.
+
+        Args:
+            finding: Security finding dictionary with fix_confidence
+
+        Returns:
+            True if the fix is safe to auto-merge without review
+        """
         # Only auto-merge if high confidence
         if finding.get('fix_confidence', 0) < 7:
             return False
@@ -112,7 +151,15 @@ class RiskAnalyzer:
         return self.is_patch_update(current_version, fixed_version)
 
     def is_patch_update(self, current: str, fixed: str) -> bool:
-        """Check if update is just a patch version bump."""
+        """Check if update is just a patch version bump (e.g., 2.0.1 -> 2.0.2).
+
+        Args:
+            current: Current version string
+            fixed: Fixed version string
+
+        Returns:
+            True if major and minor versions match (only patch differs)
+        """
         try:
             current_parts = current.split('.')
             fixed_parts = fixed.split('.')
@@ -126,7 +173,15 @@ class RiskAnalyzer:
         return False
 
     def is_minor_update(self, current: str, fixed: str) -> bool:
-        """Check if update is a minor version bump."""
+        """Check if update is a minor version bump (e.g., 2.0.0 -> 2.1.0).
+
+        Args:
+            current: Current version string
+            fixed: Fixed version string
+
+        Returns:
+            True if major version matches (only minor/patch differ)
+        """
         try:
             current_parts = current.split('.')
             fixed_parts = fixed.split('.')
@@ -138,13 +193,25 @@ class RiskAnalyzer:
             return False
         return False
 
-    def generate_recommendations(self, triaged: Dict, auto_fixes: List[Dict]) -> List[str]:
-        """Generate action recommendations."""
-        recommendations = []
+    def generate_recommendations(
+        self,
+        triaged: Dict[str, List[Dict[str, Any]]],
+        auto_fixes: List[Dict[str, Any]]
+    ) -> List[str]:
+        """Generate action recommendations based on findings.
 
-        critical_count = len(triaged['critical'])
-        high_count = len(triaged['high'])
-        auto_merge_count = len([f for f in auto_fixes if f['auto_merge_safe']])
+        Args:
+            triaged: Dictionary of findings categorized by severity
+            auto_fixes: List of auto-fixable findings
+
+        Returns:
+            List of recommendation strings
+        """
+        recommendations: List[str] = []
+
+        critical_count: int = len(triaged['critical'])
+        high_count: int = len(triaged['high'])
+        auto_merge_count: int = len([f for f in auto_fixes if f['auto_merge_safe']])
 
         if critical_count > 0:
             recommendations.append(
@@ -164,7 +231,7 @@ class RiskAnalyzer:
             )
 
         if len(auto_fixes) > auto_merge_count:
-            manual_review = len(auto_fixes) - auto_merge_count
+            manual_review: int = len(auto_fixes) - auto_merge_count
             recommendations.append(
                 f"👀 {manual_review} fixes available but require manual review."
             )
@@ -172,14 +239,17 @@ class RiskAnalyzer:
         return recommendations
 
 
-def main():
-    parser = argparse.ArgumentParser(description='Analyze and triage security findings')
+def main() -> None:
+    """Main entry point for risk analysis CLI."""
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+        description='Analyze and triage security findings'
+    )
     parser.add_argument('findings_file', help='Input findings JSON file')
     parser.add_argument('--output', default='triage.json', help='Output triage file')
-    args = parser.parse_args()
+    args: argparse.Namespace = parser.parse_args()
 
-    analyzer = RiskAnalyzer()
-    triage = analyzer.analyze(args.findings_file)
+    analyzer: RiskAnalyzer = RiskAnalyzer()
+    triage: Dict[str, Any] = analyzer.analyze(args.findings_file)
 
     # Write output
     with open(args.output, 'w') as f:

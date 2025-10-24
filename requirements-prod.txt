@@ -1,0 +1,15 @@
+# Production dependencies for security-central
+# These are the minimum required packages for running scans
+
+# Core dependencies
+pyyaml>=6.0.1              # Configuration file parsing
+requests>=2.32.3            # HTTP requests for APIs (PyPI, GitHub)
+pydantic>=2.0.0            # Data validation and settings management
+
+# Security scanning tools
+safety>=3.2.8              # Python dependency vulnerability scanner
+pip-audit>=2.7.3           # Python dependency auditing
+bandit>=1.7.10             # Python security linter
+
+# System utilities
+psutil>=5.9.0              # Process and system monitoring (for performance metrics)

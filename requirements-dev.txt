@@ -1,0 +1,41 @@
+# Development dependencies for security-central
+# Install these in addition to requirements-prod.txt for development
+
+# Include production dependencies
+-r requirements-prod.txt
+
+# Testing
+pytest>=8.3.3              # Testing framework
+pytest-cov>=5.0.0          # Coverage reporting
+pytest-mock>=3.14.0        # Mocking for tests
+pytest-xdist>=3.6.1        # Parallel test execution
+
+# Type checking
+mypy>=1.11.2               # Static type checker
+types-pyyaml>=6.0.12       # Type stubs for PyYAML
+types-requests>=2.32.0     # Type stubs for requests
+
+# Code formatting
+black>=24.10.0             # Code formatter
+isort>=5.13.2              # Import sorter
+autopep8>=2.3.1            # PEP 8 auto-formatter
+
+# Linting
+flake8>=7.1.1              # Style guide enforcement
+flake8-docstrings>=1.7.0   # Docstring linting
+pylint>=3.2.7              # Comprehensive linter
+ruff>=0.6.9                # Fast Python linter
+
+# Security scanning (dev)
+semgrep>=1.88.0            # Static analysis for security
+
+# Pre-commit hooks
+pre-commit>=3.8.0          # Pre-commit hook framework
+
+# Documentation
+sphinx>=7.4.7              # Documentation generator (optional)
+sphinx-rtd-theme>=2.0.0    # ReadTheDocs theme (optional)
+
+# Utilities
+ipython>=8.27.0            # Enhanced Python shell
+ipdb>=0.13.13              # IPython debugger

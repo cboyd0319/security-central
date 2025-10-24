@@ -16,6 +16,11 @@ import os
 # Add scripts directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from utils import deduplicate_findings, merge_findings_metadata
+from logging_config import setup_logging
+import logging
+
+# Set up logging
+logger = setup_logging(__name__)
 
 
 class MultiRepoScanner:
@@ -33,21 +38,21 @@ class MultiRepoScanner:
 
             # Skip if repo directory doesn't exist
             if not Path(repo_dir).exists():
-                print(f"\n⊘ Skipping {repo['name']} (not cloned)")
+                logger.warning("Skipping repository (not cloned)", extra={'repo': repo['name']})
                 continue
 
-            print(f"\n{'='*60}")
-            print(f"Scanning {repo['name']}")
-            print(f"{'='*60}")
+            logger.info("="*60)
+            logger.info("Starting scan", extra={'repo': repo['name']})
+            logger.info("="*60)
             repo_findings = self.scan_repo(repo)
             self.findings.extend(repo_findings)
             scanned_count += 1
 
         # If no external repos were scanned, scan security-central itself as a fallback
         if scanned_count == 0:
-            print(f"\n{'='*60}")
-            print(f"Scanning security-central (self-scan)")
-            print(f"{'='*60}")
+            logger.info("="*60)
+            logger.info("No external repos found, performing self-scan", extra={'repo': 'security-central'})
+            logger.info("="*60)
             self_repo = {
                 'name': 'security-central',
                 'tech_stack': ['python']
@@ -62,8 +67,11 @@ class MultiRepoScanner:
         self.findings, duplicate_count = deduplicate_findings(self.findings)
 
         if duplicate_count > 0:
-            print(f"\n📊 Deduplication: Removed {duplicate_count} duplicate findings")
-            print(f"   {original_count} total → {len(self.findings)} unique")
+            logger.info("Deduplication complete", extra={
+                'duplicate_count': duplicate_count,
+                'original_count': original_count,
+                'unique_count': len(self.findings)
+            })
 
         return {
             'scan_time': datetime.now(timezone.utc).isoformat(),

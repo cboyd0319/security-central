@@ -7,18 +7,34 @@ import os
 import subprocess
 import yaml
 from pathlib import Path
+from typing import Tuple, List, Dict
 
 
-def clone_repos(config_path: str = 'config/repos.yml', repos_dir: str = 'repos'):
-    """Clone all repositories defined in config."""
+def clone_repos(
+    config_path: str = 'config/repos.yml',
+    repos_dir: str = 'repos'
+) -> Tuple[int, List[str]]:
+    """Clone all repositories defined in config.
+
+    Args:
+        config_path: Path to repos.yml configuration file
+        repos_dir: Directory to clone repositories into
+
+    Returns:
+        Tuple of (successful_count, list_of_failed_repos)
+
+    Example:
+        >>> success, failures = clone_repos()
+        >>> print(f"Cloned {success} repos, {len(failures)} failed")
+    """
     with open(config_path) as f:
         config = yaml.safe_load(f)
 
     repos_path = Path(repos_dir)
     repos_path.mkdir(exist_ok=True)
 
-    successful = 0
-    failed = []
+    successful: int = 0
+    failed: List[str] = []
 
     for repo in config['repositories']:
         repo_name = repo['name']
@@ -52,6 +68,8 @@ def clone_repos(config_path: str = 'config/repos.yml', repos_dir: str = 'repos')
     if failed:
         print(f"⚠️  Failed to clone: {', '.join(failed)}")
         print("   (This is expected if repos don't exist yet or require authentication)")
+
+    return successful, failed
 
 
 if __name__ == '__main__':

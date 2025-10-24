@@ -1,15 +1,8 @@
-# Core dependencies for security-central
-pyyaml>=6.0.1
-requests>=2.32.3
-pydantic>=2.0.0
+# Production dependencies for security-central
+# For development, use: pip install -r requirements-dev.txt
+# For production, use: pip install -r requirements-prod.txt
+#
+# This file is kept for backward compatibility
+# It now just includes the production requirements
 
-# Security scanning tools
-safety>=3.2.8
-pip-audit>=2.7.3
-bandit>=1.7.10
-semgrep>=1.88.0
-
-# Code quality
-black>=24.10.0
-isort>=5.13.2
-ruff>=0.6.9
+-r requirements-prod.txt

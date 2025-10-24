@@ -7,17 +7,32 @@ import json
 import subprocess
 import os
 import argparse
-from typing import Dict
+from typing import Dict, List, Optional, Any
 from pathlib import Path
 
 
 class AutoPatcher:
-    def __init__(self, gh_token: str):
-        self.gh_token = gh_token
+    """Automatically create pull requests to fix security vulnerabilities.
+
+    Attributes:
+        gh_token: GitHub personal access token for API operations
+    """
+
+    def __init__(self, gh_token: str) -> None:
+        """Initialize the auto-patcher.
+
+        Args:
+            gh_token: GitHub personal access token
+        """
+        self.gh_token: str = gh_token
         os.environ['GH_TOKEN'] = gh_token
 
-    def _cleanup_branch(self, branch_name: str):
-        """Clean up by switching to main and deleting the branch."""
+    def _cleanup_branch(self, branch_name: str) -> None:
+        """Clean up by switching to main and deleting the branch.
+
+        Args:
+            branch_name: Name of the branch to delete
+        """
         try:
             subprocess.run(
                 ['git', 'checkout', 'main'],
@@ -38,12 +53,17 @@ class AutoPatcher:
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             print(f"    ⚠️  Warning: Failed to delete branch {branch_name}: {e}")
 
-    def create_prs(self, triage_file: str, auto_merge_safe_only: bool = False):
-        """Create PRs for fixable vulnerabilities."""
-        with open(triage_file) as f:
-            triage = json.load(f)
+    def create_prs(self, triage_file: str, auto_merge_safe_only: bool = False) -> None:
+        """Create PRs for fixable vulnerabilities.
 
-        auto_fixes = triage.get('auto_fixes', [])
+        Args:
+            triage_file: Path to triage JSON file with auto-fix recommendations
+            auto_merge_safe_only: If True, only create PRs marked as safe to auto-merge
+        """
+        with open(triage_file) as f:
+            triage: Dict[str, Any] = json.load(f)
+
+        auto_fixes: List[Dict[str, Any]] = triage.get('auto_fixes', [])
 
         if auto_merge_safe_only:
             auto_fixes = [f for f in auto_fixes if f.get('auto_merge_safe', False)]
@@ -56,16 +76,20 @@ class AutoPatcher:
             except Exception as e:
                 print(f"  ❌ Failed to create PR for {fix.get('package')}: {e}")
 
-    def create_pr(self, fix: Dict):
-        """Create a single security patch PR."""
-        repo_name = fix['repo']
-        package = fix.get('package', 'unknown')
-        cve = fix.get('cve', 'SECURITY')
-        branch_name = f"security/auto-patch-{package}-{cve}".replace('/', '-')[:100]
+    def create_pr(self, fix: Dict[str, Any]) -> None:
+        """Create a single security patch PR.
+
+        Args:
+            fix: Fix dictionary containing package, CVE, severity, and version info
+        """
+        repo_name: str = fix['repo']
+        package: str = fix.get('package', 'unknown')
+        cve: str = fix.get('cve', 'SECURITY')
+        branch_name: str = f"security/auto-patch-{package}-{cve}".replace('/', '-')[:100]
 
         print(f"\n  📝 {repo_name}: {package} ({cve})")
 
-        repo_dir = f"repos/{repo_name}"
+        repo_dir: str = f"repos/{repo_name}"
         os.chdir(repo_dir)
 
         # Check if branch already exists
@@ -126,7 +150,7 @@ class AutoPatcher:
 
         # Check if changes were made
         try:
-            status = subprocess.run(
+            status: subprocess.CompletedProcess[str] = subprocess.run(
                 ['git', 'status', '--porcelain'],
                 capture_output=True,
                 text=True,
@@ -146,7 +170,7 @@ class AutoPatcher:
             return
 
         # Commit changes
-        commit_msg = self.generate_commit_message(fix)
+        commit_msg: str = self.generate_commit_message(fix)
         try:
             subprocess.run(['git', 'add', '.'], check=True, timeout=30)
             subprocess.run(
@@ -186,10 +210,10 @@ class AutoPatcher:
             return
 
         # Create PR
-        pr_body = self.generate_pr_body(fix)
-        pr_title = f"security: fix {cve} in {package}"
+        pr_body: str = self.generate_pr_body(fix)
+        pr_title: str = f"security: fix {cve} in {package}"
 
-        result = subprocess.run([
+        result: subprocess.CompletedProcess[str] = subprocess.run([
             'gh', 'pr', 'create',
             '--title', pr_title,
             '--body', pr_body,
@@ -202,8 +226,8 @@ class AutoPatcher:
 
             # Auto-merge if safe
             if fix.get('auto_merge_safe'):
-                pr_url = result.stdout.strip()
-                pr_number = pr_url.split('/')[-1]
+                pr_url: str = result.stdout.strip()
+                pr_number: str = pr_url.split('/')[-1]
 
                 # Enable auto-merge (requires PR checks to pass)
                 try:
@@ -229,23 +253,30 @@ class AutoPatcher:
             print(f"    ⚠️  Warning: Failed to return to main branch: {e}")
         os.chdir('../..')
 
-    def fix_python_dependency(self, fix: Dict):
-        """Update Python dependency."""
-        package = fix['package']
-        fixed_version = fix.get('fixed_in', [''])[0]
+    def fix_python_dependency(self, fix: Dict[str, Any]) -> None:
+        """Update Python dependency to fixed version.
+
+        Args:
+            fix: Fix dictionary containing package name and fixed version
+
+        Raises:
+            ValueError: If no fixed version available or package not found
+        """
+        package: str = fix['package']
+        fixed_version: str = fix.get('fixed_in', [''])[0]
 
         if not fixed_version:
             raise ValueError(f"No fixed version available for {package}")
 
         # Update requirements.txt
-        req_files = [
+        req_files: List[str] = [
             'requirements.txt',
             'requirements-dev.txt',
             'requirements/prod.txt',
             'requirements/dev.txt'
         ]
 
-        updated = False
+        updated: bool = False
         for req_file in req_files:
             if os.path.exists(req_file):
                 with open(req_file, 'r') as f:
@@ -280,10 +311,17 @@ class AutoPatcher:
         if not updated:
             raise ValueError(f"Could not find {package} in any dependency file")
 
-    def fix_npm_dependency(self, fix: Dict):
-        """Update npm dependency."""
-        package = fix['package']
-        fixed_version = fix.get('fixed_in', '')
+    def fix_npm_dependency(self, fix: Dict[str, Any]) -> None:
+        """Update npm dependency to fixed version.
+
+        Args:
+            fix: Fix dictionary containing package name and fixed version
+
+        Raises:
+            ValueError: If no fixed version available or npm install fails
+        """
+        package: str = fix['package']
+        fixed_version: str = fix.get('fixed_in', '')
 
         if not fixed_version:
             raise ValueError(f"No fixed version available for {package}")
@@ -298,17 +336,31 @@ class AutoPatcher:
         except subprocess.TimeoutExpired:
             raise ValueError(f"npm install timed out after 5 minutes")
 
-    def fix_jvm_dependency(self, fix: Dict):
-        """Update JVM dependency (basic implementation)."""
+    def fix_jvm_dependency(self, fix: Dict[str, Any]) -> None:
+        """Update JVM dependency (basic implementation).
+
+        Args:
+            fix: Fix dictionary containing dependency information
+
+        Raises:
+            ValueError: Always raises as JVM updates not yet automated
+        """
         # This is complex - for now, just add comment to manual review
         print(f"    ⚠️  JVM dependency updates require manual review")
         raise ValueError("JVM dependency updates not yet automated")
 
-    def generate_commit_message(self, fix: Dict) -> str:
-        """Generate semantic commit message."""
-        package = fix.get('package', 'dependency')
-        cve = fix.get('cve', 'security issue')
-        severity = fix.get('severity', 'UNKNOWN')
+    def generate_commit_message(self, fix: Dict[str, Any]) -> str:
+        """Generate semantic commit message.
+
+        Args:
+            fix: Fix dictionary with vulnerability details
+
+        Returns:
+            Formatted commit message with CVE, severity, and version info
+        """
+        package: str = fix.get('package', 'dependency')
+        cve: str = fix.get('cve', 'security issue')
+        severity: str = fix.get('severity', 'UNKNOWN')
 
         msg = f"""security: update {package} to fix {cve}
 
@@ -323,14 +375,21 @@ Auto-merge safe: {fix.get('auto_merge_safe', False)}
 """
         return msg
 
-    def generate_pr_body(self, fix: Dict) -> str:
-        """Generate PR description."""
-        package = fix.get('package', 'dependency')
-        cve = fix.get('cve', 'N/A')
-        severity = fix.get('severity', 'UNKNOWN')
-        current_version = fix.get('version', 'unknown')
-        fixed_version = fix.get('fixed_in', ['unknown'])[0]
-        advisory = fix.get('advisory', 'No advisory available.')
+    def generate_pr_body(self, fix: Dict[str, Any]) -> str:
+        """Generate PR description with full vulnerability details.
+
+        Args:
+            fix: Fix dictionary with vulnerability details
+
+        Returns:
+            Markdown-formatted PR body with CVE details and testing checklist
+        """
+        package: str = fix.get('package', 'dependency')
+        cve: str = fix.get('cve', 'N/A')
+        severity: str = fix.get('severity', 'UNKNOWN')
+        current_version: str = fix.get('version', 'unknown')
+        fixed_version: str = fix.get('fixed_in', ['unknown'])[0]
+        advisory: str = fix.get('advisory', 'No advisory available.')
 
         body = f"""## 🔒 Security Update
 
@@ -369,21 +428,24 @@ Fix confidence: {fix.get('fix_confidence', 0)}/10
         return body
 
 
-def main():
-    parser = argparse.ArgumentParser(description='Create security patch PRs')
+def main() -> None:
+    """Main entry point for auto-patcher CLI."""
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+        description='Create security patch PRs'
+    )
     parser.add_argument('triage_file', help='Triage JSON file')
     parser.add_argument('--auto-merge-safe-only', action='store_true',
                         help='Only create PRs for auto-merge safe fixes')
-    args = parser.parse_args()
+    args: argparse.Namespace = parser.parse_args()
 
-    gh_token = os.environ.get('GH_TOKEN')
+    gh_token: Optional[str] = os.environ.get('GH_TOKEN')
     if not gh_token:
         print("⚠️  WARNING: GH_TOKEN environment variable not set")
         print("   PR creation will be skipped. This is expected during initial setup.")
         print("   To enable PR creation, set the GH_TOKEN secret in your repository.")
         return
 
-    patcher = AutoPatcher(gh_token)
+    patcher: AutoPatcher = AutoPatcher(gh_token)
     patcher.create_prs(args.triage_file, args.auto_merge_safe_only)
 
 

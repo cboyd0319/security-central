@@ -16,12 +16,20 @@ import requests
 
 @dataclass
 class DependencyRisk:
+    """Represents a dependency with supply chain risk analysis.
+
+    Attributes:
+        name: Package name
+        version: Package version
+        risk_score: Risk score from 0-100
+        issues: List of identified risk indicators
+    """
     name: str
     version: str
     risk_score: float  # 0-100
     issues: list[str]
-    
-    def to_dict(self) -> dict:
+
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "version": self.version,
@@ -44,8 +52,13 @@ class SupplyChainAnalyzer:
         "filesystem_access": 15,
     }
     
-    def __init__(self, repo_path: Path):
-        self.repo_path = repo_path
+    def __init__(self, repo_path: Path) -> None:
+        """Initialize the supply chain analyzer.
+
+        Args:
+            repo_path: Path to repository to analyze
+        """
+        self.repo_path: Path = repo_path
         # Create session with retry logic for PyPI queries
         self.session = create_session_with_retries(
             total_retries=3,
@@ -53,8 +66,12 @@ class SupplyChainAnalyzer:
         )
         
     def analyze_python_deps(self) -> list[DependencyRisk]:
-        """Analyze Python dependencies."""
-        risks = []
+        """Analyze Python dependencies for supply chain risks.
+
+        Returns:
+            List of high-risk dependencies (score > 50)
+        """
+        risks: list[DependencyRisk] = []
         
         # Get dependencies
         result = subprocess.run(
@@ -66,12 +83,12 @@ class SupplyChainAnalyzer:
         deps = json.loads(result.stdout)
         
         for dep in deps:
-            name = dep["name"]
-            version = dep["version"]
-            
+            name: str = dep["name"]
+            version: str = dep["version"]
+
             # Check PyPI metadata
-            issues = []
-            risk_score = 0.0
+            issues: list[str] = []
+            risk_score: float = 0.0
             
             metadata = self._get_pypi_metadata(name)
             if metadata:
@@ -101,7 +118,14 @@ class SupplyChainAnalyzer:
         exceptions=(requests.RequestException,)
     )
     def _get_pypi_metadata(self, package_name: str) -> dict[str, Any] | None:
-        """Fetch package metadata from PyPI with automatic retries."""
+        """Fetch package metadata from PyPI with automatic retries.
+
+        Args:
+            package_name: Name of the package to fetch metadata for
+
+        Returns:
+            Package metadata dictionary or None if not found
+        """
         try:
             resp = self.session.get(
                 f"https://pypi.org/pypi/{package_name}/json",
@@ -120,8 +144,15 @@ class SupplyChainAnalyzer:
             return None
     
     def _is_typosquat(self, package_name: str) -> bool:
-        """Check if package name looks like typosquatting."""
-        POPULAR_PACKAGES = [
+        """Check if package name looks like typosquatting.
+
+        Args:
+            package_name: Package name to check
+
+        Returns:
+            True if package name is suspiciously similar to popular package
+        """
+        POPULAR_PACKAGES: list[str] = [
             "requests", "numpy", "pandas", "django", "flask",
             "boto3", "pytest", "setuptools", "wheel"
         ]
@@ -135,15 +166,23 @@ class SupplyChainAnalyzer:
     
     @staticmethod
     def _levenshtein(s1: str, s2: str) -> int:
-        """Calculate Levenshtein distance."""
+        """Calculate Levenshtein distance between two strings.
+
+        Args:
+            s1: First string
+            s2: Second string
+
+        Returns:
+            Edit distance between the two strings
+        """
         if len(s1) < len(s2):
             return SupplyChainAnalyzer._levenshtein(s2, s1)
         if len(s2) == 0:
             return len(s1)
         
-        previous_row = range(len(s2) + 1)
+        previous_row: range = range(len(s2) + 1)
         for i, c1 in enumerate(s1):
-            current_row = [i + 1]
+            current_row: list[int] = [i + 1]
             for j, c2 in enumerate(s2):
                 insertions = previous_row[j + 1] + 1
                 deletions = current_row[j] + 1
@@ -155,13 +194,13 @@ class SupplyChainAnalyzer:
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser()
+    parser: argparse.ArgumentParser = argparse.ArgumentParser()
     parser.add_argument("--repo", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    args = parser.parse_args()
-    
-    analyzer = SupplyChainAnalyzer(args.repo)
-    risks = analyzer.analyze_python_deps()
+    args: argparse.Namespace = parser.parse_args()
+
+    analyzer: SupplyChainAnalyzer = SupplyChainAnalyzer(args.repo)
+    risks: list[DependencyRisk] = analyzer.analyze_python_deps()
     
     with open(args.output, "w") as f:
         json.dump([r.to_dict() for r in risks], f, indent=2)

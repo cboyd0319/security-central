@@ -7,15 +7,20 @@ import json
 import argparse
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List, Any
 
 
-def generate_report(triage_file: str, output_file: str):
-    """Generate markdown security report."""
+def generate_report(triage_file: str, output_file: str) -> None:
+    """Generate markdown security report from triage results.
+
+    Args:
+        triage_file: Path to triage JSON file
+        output_file: Path to output markdown report file
+    """
     with open(triage_file) as f:
-        triage = json.load(f)
+        triage: Dict[str, Any] = json.load(f)
 
-    report_date = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
+    report_date: str = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
 
     report = f"""# Security Scan Report
 
@@ -67,12 +72,19 @@ def generate_report(triage_file: str, output_file: str):
     print(f"Report generated: {output_file}")
 
 
-def format_finding(finding: Dict) -> str:
-    """Format a finding for the report."""
-    pkg = finding.get('package', finding.get('rule', 'Unknown'))
-    cve = finding.get('cve', 'N/A')
-    repo = finding.get('repo', 'Unknown')
-    advisory = finding.get('advisory', finding.get('message', 'No details available'))[:200]
+def format_finding(finding: Dict[str, Any]) -> str:
+    """Format a finding for the report.
+
+    Args:
+        finding: Finding dictionary with vulnerability details
+
+    Returns:
+        Markdown-formatted finding section
+    """
+    pkg: str = finding.get('package', finding.get('rule', 'Unknown'))
+    cve: str = finding.get('cve', 'N/A')
+    repo: str = finding.get('repo', 'Unknown')
+    advisory: str = finding.get('advisory', finding.get('message', 'No details available'))[:200]
 
     return f"""### {pkg} ({cve})
 
@@ -86,12 +98,19 @@ def format_finding(finding: Dict) -> str:
 """
 
 
-def format_auto_fix(fix: Dict) -> str:
-    """Format an auto-fix for the report."""
-    pkg = fix.get('package', 'Unknown')
-    repo = fix.get('repo', 'Unknown')
-    confidence = fix.get('fix_confidence', 0)
-    auto_merge = fix.get('auto_merge_safe', False)
+def format_auto_fix(fix: Dict[str, Any]) -> str:
+    """Format an auto-fix for the report.
+
+    Args:
+        fix: Auto-fix dictionary with package and confidence info
+
+    Returns:
+        Markdown-formatted auto-fix section
+    """
+    pkg: str = fix.get('package', 'Unknown')
+    repo: str = fix.get('repo', 'Unknown')
+    confidence: int = fix.get('fix_confidence', 0)
+    auto_merge: bool = fix.get('auto_merge_safe', False)
 
     return f"""### {pkg} in {repo}
 
@@ -105,11 +124,14 @@ def format_auto_fix(fix: Dict) -> str:
 """
 
 
-def main():
-    parser = argparse.ArgumentParser(description='Generate security report')
+def main() -> None:
+    """Main entry point for report generation CLI."""
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+        description='Generate security report'
+    )
     parser.add_argument('triage_file', help='Triage JSON file')
     parser.add_argument('--output', required=True, help='Output markdown file')
-    args = parser.parse_args()
+    args: argparse.Namespace = parser.parse_args()
 
     generate_report(args.triage_file, args.output)
 
