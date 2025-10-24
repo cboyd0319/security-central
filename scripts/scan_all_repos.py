@@ -9,7 +9,7 @@ import yaml
 import argparse
 from pathlib import Path
 from typing import List, Dict
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class MultiRepoScanner:
@@ -52,7 +52,7 @@ class MultiRepoScanner:
             scanned_count = 1
 
         return {
-            'scan_time': datetime.utcnow().isoformat(),
+            'scan_time': datetime.now(timezone.utc).isoformat(),
             'total_repos': scanned_count,
             'findings': self.findings,
             'summary': self.generate_summary()
