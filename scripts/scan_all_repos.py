@@ -10,6 +10,12 @@ import argparse
 from pathlib import Path
 from typing import List, Dict
 from datetime import datetime, timezone
+import sys
+import os
+
+# Add scripts directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from utils import deduplicate_findings, merge_findings_metadata
 
 
 class MultiRepoScanner:
@@ -21,15 +27,15 @@ class MultiRepoScanner:
     def scan_all(self) -> Dict:
         """Run all security scans across all repos."""
         scanned_count = 0
-        
+
         for repo in self.config['repositories']:
             repo_dir = f"repos/{repo['name']}"
-            
+
             # Skip if repo directory doesn't exist
             if not Path(repo_dir).exists():
                 print(f"\n⊘ Skipping {repo['name']} (not cloned)")
                 continue
-            
+
             print(f"\n{'='*60}")
             print(f"Scanning {repo['name']}")
             print(f"{'='*60}")
@@ -51,11 +57,24 @@ class MultiRepoScanner:
             self.findings.extend(self_findings)
             scanned_count = 1
 
+        # Deduplicate findings from multiple scanners
+        original_count = len(self.findings)
+        self.findings, duplicate_count = deduplicate_findings(self.findings)
+
+        if duplicate_count > 0:
+            print(f"\n📊 Deduplication: Removed {duplicate_count} duplicate findings")
+            print(f"   {original_count} total → {len(self.findings)} unique")
+
         return {
             'scan_time': datetime.now(timezone.utc).isoformat(),
             'total_repos': scanned_count,
             'findings': self.findings,
-            'summary': self.generate_summary()
+            'summary': self.generate_summary(),
+            'deduplication': {
+                'original_count': original_count,
+                'duplicate_count': duplicate_count,
+                'unique_count': len(self.findings)
+            }
         }
 
     def scan_repo(self, repo: Dict) -> List[Dict]:

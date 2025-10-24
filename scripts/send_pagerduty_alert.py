@@ -6,7 +6,7 @@ Send PagerDuty alerts for critical security issues.
 import os
 import requests
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def send_alert(severity: str, cve: str = None, count: int = None, message: str = None):
@@ -32,7 +32,7 @@ def send_alert(severity: str, cve: str = None, count: int = None, message: str =
             "summary": message,
             "severity": severity.lower(),
             "source": "security-central",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "custom_details": {
                 "cve": cve or "N/A",
                 "count": count or 0

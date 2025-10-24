@@ -120,8 +120,9 @@ class ComprehensiveAuditor:
                     data = json.load(f)
                     count += len(data.get('dependencies', {}))
                     count += len(data.get('devDependencies', {}))
-            except:
-                pass
+            except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
+                # Handle missing or invalid package.json files
+                print(f"    ⚠️  Failed to parse {package_json}: {e}")
 
         return count
 

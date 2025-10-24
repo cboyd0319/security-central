@@ -173,7 +173,8 @@ class DependencyIntelligence:
                 return 6  # MEDIUM: Different minor versions
 
             return 2  # LOW: Just patch differences
-        except:
+        except (ValueError, AttributeError, IndexError) as e:
+            # Handle version parsing errors
             return 5  # Default medium severity
 
     def predict_breaking_changes(self, package: str, from_version: str, to_version: str) -> Dict:
@@ -207,11 +208,12 @@ class DependencyIntelligence:
                     'recommendation': 'Safe to auto-merge',
                     'risk_level': 'LOW'
                 }
-        except:
+        except (ValueError, AttributeError, IndexError) as e:
+            # Handle version parsing errors
             return {
                 'breaking': None,
                 'confidence': 0.0,
-                'reason': 'Could not parse version numbers',
+                'reason': f'Could not parse version numbers: {e}',
                 'recommendation': 'Manual review required',
                 'risk_level': 'UNKNOWN'
             }

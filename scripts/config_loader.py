@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Optional
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 # Configuration loader for security-central
 # Note: Repository definitions are in config/repos.yml
@@ -36,10 +36,36 @@ class SecurityCentralConfig(BaseModel):
 
     @classmethod
     def load(cls, config_path: Path = Path("config/security-central.yaml")):
-        """Load scanning configuration from security-central.yaml"""
-        with open(config_path) as f:
-            data = yaml.safe_load(f)
-        return cls(**data)
+        """Load scanning configuration from security-central.yaml
+
+        Raises:
+            FileNotFoundError: If config file doesn't exist
+            yaml.YAMLError: If YAML is invalid
+            ValidationError: If config doesn't match schema
+        """
+        try:
+            with open(config_path) as f:
+                data = yaml.safe_load(f)
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f"Configuration file not found: {config_path}\n"
+                f"Please ensure {config_path} exists and contains valid configuration."
+            )
+        except yaml.YAMLError as e:
+            raise yaml.YAMLError(
+                f"Invalid YAML in {config_path}: {e}\n"
+                f"Please check the file for syntax errors."
+            )
+        except Exception as e:
+            raise Exception(f"Error reading {config_path}: {e}")
+
+        try:
+            return cls(**data)
+        except ValidationError as e:
+            raise ValidationError(
+                f"Invalid configuration in {config_path}:\n{e}\n"
+                f"Please check that all required fields are present and valid."
+            )
 
 class ReposConfig(BaseModel):
     """Load repository definitions from repos.yml"""
@@ -50,10 +76,36 @@ class ReposConfig(BaseModel):
 
     @classmethod
     def load(cls, config_path: Path = Path("config/repos.yml")):
-        """Load repository definitions from repos.yml"""
-        with open(config_path) as f:
-            data = yaml.safe_load(f)
-        return cls(**data)
+        """Load repository definitions from repos.yml
+
+        Raises:
+            FileNotFoundError: If config file doesn't exist
+            yaml.YAMLError: If YAML is invalid
+            ValidationError: If config doesn't match schema
+        """
+        try:
+            with open(config_path) as f:
+                data = yaml.safe_load(f)
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f"Repository configuration not found: {config_path}\n"
+                f"Please ensure {config_path} exists with repository definitions."
+            )
+        except yaml.YAMLError as e:
+            raise yaml.YAMLError(
+                f"Invalid YAML in {config_path}: {e}\n"
+                f"Please check the file for syntax errors."
+            )
+        except Exception as e:
+            raise Exception(f"Error reading {config_path}: {e}")
+
+        try:
+            return cls(**data)
+        except ValidationError as e:
+            raise ValidationError(
+                f"Invalid repository configuration in {config_path}:\n{e}\n"
+                f"Please check that all required fields are present and valid."
+            )
 
 # Usage example:
 # scanning_config = SecurityCentralConfig.load()

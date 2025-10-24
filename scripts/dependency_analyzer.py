@@ -6,6 +6,12 @@ import subprocess
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Any
+import sys
+import os
+
+# Add scripts directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from utils import create_session_with_retries, retry_on_exception
 import requests
 
 @dataclass
@@ -40,6 +46,11 @@ class SupplyChainAnalyzer:
     
     def __init__(self, repo_path: Path):
         self.repo_path = repo_path
+        # Create session with retry logic for PyPI queries
+        self.session = create_session_with_retries(
+            total_retries=3,
+            backoff_factor=0.5
+        )
         
     def analyze_python_deps(self) -> list[DependencyRisk]:
         """Analyze Python dependencies."""
@@ -84,15 +95,29 @@ class SupplyChainAnalyzer:
         
         return risks
     
+    @retry_on_exception(
+        max_attempts=3,
+        delay=0.5,
+        exceptions=(requests.RequestException,)
+    )
     def _get_pypi_metadata(self, package_name: str) -> dict[str, Any] | None:
-        """Fetch package metadata from PyPI."""
+        """Fetch package metadata from PyPI with automatic retries."""
         try:
-            resp = requests.get(f"https://pypi.org/pypi/{package_name}/json", timeout=5)
-            if resp.status_code == 200:
-                return resp.json()["info"]
-        except Exception:
-            pass
-        return None
+            resp = self.session.get(
+                f"https://pypi.org/pypi/{package_name}/json",
+                timeout=10
+            )
+            resp.raise_for_status()
+            return resp.json()["info"]
+        except requests.HTTPError as e:
+            if e.response.status_code == 404:
+                # Package not found - don't retry
+                return None
+            raise  # Retry other HTTP errors
+        except (KeyError, ValueError) as e:
+            # Handle missing keys or invalid JSON
+            print(f"    ⚠️  Invalid metadata for {package_name}: {e}")
+            return None
     
     def _is_typosquat(self, package_name: str) -> bool:
         """Check if package name looks like typosquatting."""

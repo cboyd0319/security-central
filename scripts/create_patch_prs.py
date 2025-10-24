@@ -16,6 +16,28 @@ class AutoPatcher:
         self.gh_token = gh_token
         os.environ['GH_TOKEN'] = gh_token
 
+    def _cleanup_branch(self, branch_name: str):
+        """Clean up by switching to main and deleting the branch."""
+        try:
+            subprocess.run(
+                ['git', 'checkout', 'main'],
+                check=True,
+                capture_output=True,
+                timeout=30
+            )
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+            print(f"    ⚠️  Warning: Failed to checkout main: {e}")
+
+        try:
+            subprocess.run(
+                ['git', 'branch', '-D', branch_name],
+                check=True,
+                capture_output=True,
+                timeout=30
+            )
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+            print(f"    ⚠️  Warning: Failed to delete branch {branch_name}: {e}")
+
     def create_prs(self, triage_file: str, auto_merge_safe_only: bool = False):
         """Create PRs for fixable vulnerabilities."""
         with open(triage_file) as f:
@@ -47,10 +69,23 @@ class AutoPatcher:
         os.chdir(repo_dir)
 
         # Check if branch already exists
-        existing_branches = subprocess.run(
-            ['git', 'branch', '-r'],
-            capture_output=True, text=True
-        ).stdout
+        try:
+            existing_branches_result = subprocess.run(
+                ['git', 'branch', '-r'],
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=30
+            )
+            existing_branches = existing_branches_result.stdout
+        except subprocess.CalledProcessError as e:
+            print(f"    ❌ Failed to check existing branches: {e.stderr}")
+            os.chdir('../..')
+            return
+        except subprocess.TimeoutExpired:
+            print(f"    ❌ Timeout checking branches")
+            os.chdir('../..')
+            return
 
         if branch_name in existing_branches:
             print(f"    ⏭️  PR already exists for this fix")
@@ -58,7 +93,17 @@ class AutoPatcher:
             return
 
         # Create branch
-        subprocess.run(['git', 'checkout', '-b', branch_name], check=True)
+        try:
+            subprocess.run(
+                ['git', 'checkout', '-b', branch_name],
+                check=True,
+                capture_output=True,
+                timeout=30
+            )
+        except subprocess.CalledProcessError as e:
+            print(f"    ❌ Failed to create branch {branch_name}: {e.stderr.decode() if e.stderr else 'unknown error'}")
+            os.chdir('../..')
+            return
 
         # Apply fix based on ecosystem
         try:
@@ -70,33 +115,75 @@ class AutoPatcher:
                 self.fix_jvm_dependency(fix)
             else:
                 print(f"    ⏭️  Unsupported fix type: {fix['type']}")
-                subprocess.run(['git', 'checkout', 'main'])
-                subprocess.run(['git', 'branch', '-D', branch_name])
+                self._cleanup_branch(branch_name)
                 os.chdir('../..')
                 return
         except Exception as e:
             print(f"    ❌ Fix failed: {e}")
-            subprocess.run(['git', 'checkout', 'main'])
-            subprocess.run(['git', 'branch', '-D', branch_name])
+            self._cleanup_branch(branch_name)
             os.chdir('../..')
             return
 
         # Check if changes were made
-        status = subprocess.run(['git', 'status', '--porcelain'], capture_output=True, text=True)
+        try:
+            status = subprocess.run(
+                ['git', 'status', '--porcelain'],
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=30
+            )
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+            print(f"    ❌ Failed to check git status: {e}")
+            self._cleanup_branch(branch_name)
+            os.chdir('../..')
+            return
+
         if not status.stdout.strip():
             print(f"    ⏭️  No changes needed")
-            subprocess.run(['git', 'checkout', 'main'])
-            subprocess.run(['git', 'branch', '-D', branch_name])
+            self._cleanup_branch(branch_name)
             os.chdir('../..')
             return
 
         # Commit changes
         commit_msg = self.generate_commit_message(fix)
-        subprocess.run(['git', 'add', '.'], check=True)
-        subprocess.run(['git', 'commit', '-m', commit_msg], check=True)
+        try:
+            subprocess.run(['git', 'add', '.'], check=True, timeout=30)
+            subprocess.run(
+                ['git', 'commit', '-m', commit_msg],
+                check=True,
+                capture_output=True,
+                timeout=30
+            )
+        except subprocess.CalledProcessError as e:
+            print(f"    ❌ Failed to commit changes: {e.stderr.decode() if e.stderr else 'unknown error'}")
+            self._cleanup_branch(branch_name)
+            os.chdir('../..')
+            return
+        except subprocess.TimeoutExpired:
+            print(f"    ❌ Timeout during commit")
+            self._cleanup_branch(branch_name)
+            os.chdir('../..')
+            return
 
         # Push branch
-        subprocess.run(['git', 'push', 'origin', branch_name], check=True)
+        try:
+            subprocess.run(
+                ['git', 'push', 'origin', branch_name],
+                check=True,
+                capture_output=True,
+                timeout=120  # Longer timeout for network operation
+            )
+        except subprocess.CalledProcessError as e:
+            print(f"    ❌ Failed to push branch: {e.stderr.decode() if e.stderr else 'unknown error'}")
+            self._cleanup_branch(branch_name)
+            os.chdir('../..')
+            return
+        except subprocess.TimeoutExpired:
+            print(f"    ❌ Timeout pushing to remote")
+            self._cleanup_branch(branch_name)
+            os.chdir('../..')
+            return
 
         # Create PR
         pr_body = self.generate_pr_body(fix)
@@ -119,16 +206,27 @@ class AutoPatcher:
                 pr_number = pr_url.split('/')[-1]
 
                 # Enable auto-merge (requires PR checks to pass)
-                subprocess.run([
-                    'gh', 'pr', 'merge', pr_number,
-                    '--auto', '--squash'
-                ], check=True)
-                print(f"    🤖 Auto-merge enabled (will merge after CI passes)")
+                try:
+                    subprocess.run([
+                        'gh', 'pr', 'merge', pr_number,
+                        '--auto', '--squash'
+                    ], check=True, capture_output=True, timeout=30)
+                    print(f"    🤖 Auto-merge enabled (will merge after CI passes)")
+                except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+                    print(f"    ⚠️  Auto-merge failed (requires repo settings): {e}")
         else:
             print(f"    ❌ PR creation failed: {result.stderr}")
 
         # Return to main branch
-        subprocess.run(['git', 'checkout', 'main'])
+        try:
+            subprocess.run(
+                ['git', 'checkout', 'main'],
+                check=True,
+                capture_output=True,
+                timeout=30
+            )
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+            print(f"    ⚠️  Warning: Failed to return to main branch: {e}")
         os.chdir('../..')
 
     def fix_python_dependency(self, fix: Dict):
@@ -191,9 +289,14 @@ class AutoPatcher:
             raise ValueError(f"No fixed version available for {package}")
 
         # Use npm to update
-        subprocess.run([
-            'npm', 'install', f"{package}@{fixed_version}"
-        ], check=True)
+        try:
+            subprocess.run([
+                'npm', 'install', f"{package}@{fixed_version}"
+            ], check=True, capture_output=True, timeout=300)  # 5 min for npm
+        except subprocess.CalledProcessError as e:
+            raise ValueError(f"npm install failed: {e.stderr.decode() if e.stderr else 'unknown error'}")
+        except subprocess.TimeoutExpired:
+            raise ValueError(f"npm install timed out after 5 minutes")
 
     def fix_jvm_dependency(self, fix: Dict):
         """Update JVM dependency (basic implementation)."""

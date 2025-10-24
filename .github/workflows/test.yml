@@ -31,22 +31,14 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-cov
 
+      - name: Install test dependencies
+        run: |
+          pip install pytest-mock
+
       - name: Run tests with coverage
         run: |
-          # Create empty test file if tests don't exist yet
-          mkdir -p tests
-          if [ ! -f tests/test_sample.py ]; then
-            cat > tests/test_sample.py << 'EOF'
-          """Sample tests for Security Central."""
-
-          def test_placeholder():
-              """Placeholder test that always passes."""
-              assert True
-          EOF
-          fi
-
           # Run pytest with coverage
-          pytest --cov=scripts --cov-report=xml --cov-report=term tests/ || true
+          pytest --cov=scripts --cov-report=xml --cov-report=term tests/ -v
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5.5.1

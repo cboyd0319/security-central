@@ -1,0 +1,28 @@
+# Bandit configuration for security-central
+# This configures security linting for Python code
+
+[bandit]
+# Exclude test files and virtual environments
+exclude_dirs = [
+    '/tests/',
+    '/venv/',
+    '/.venv/',
+    '/env/',
+]
+
+# Test IDs to skip (with justification)
+# B603: subprocess_without_shell_equals_true - We use subprocess extensively for git/scanners
+# B607: start_process_with_partial_path - We call standard tools like git, pip-audit
+skips = B603,B607
+
+# Severity levels
+# LOW, MEDIUM, HIGH
+tests = []
+
+# Output format
+# Available: csv, custom, html, json, screen, txt, xml, yaml
+format = screen
+
+# Confidence levels
+# LOW, MEDIUM, HIGH
+confidence = MEDIUM

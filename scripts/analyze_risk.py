@@ -120,8 +120,9 @@ class RiskAnalyzer:
             if len(current_parts) >= 3 and len(fixed_parts) >= 3:
                 return (current_parts[0] == fixed_parts[0] and
                         current_parts[1] == fixed_parts[1])
-        except:
-            pass
+        except (AttributeError, IndexError, ValueError) as e:
+            # Handle invalid version formats gracefully
+            return False
         return False
 
     def is_minor_update(self, current: str, fixed: str) -> bool:
@@ -132,8 +133,9 @@ class RiskAnalyzer:
 
             if len(current_parts) >= 2 and len(fixed_parts) >= 2:
                 return current_parts[0] == fixed_parts[0]
-        except:
-            pass
+        except (AttributeError, IndexError, ValueError) as e:
+            # Handle invalid version formats gracefully
+            return False
         return False
 
     def generate_recommendations(self, triaged: Dict, auto_fixes: List[Dict]) -> List[str]:
