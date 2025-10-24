@@ -15,6 +15,10 @@ build/
 # Cloned repositories (don't commit monitored repos)
 repos/
 
+# Generated reports (don't commit generated reports)
+docs/reports/**/*.md
+!docs/reports/.gitkeep
+
 # Scan results (generated files)
 findings.json
 triage.json
