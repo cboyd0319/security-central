@@ -32,17 +32,29 @@ class ComprehensiveAuditor:
         }
 
         # Find cloned repos
-        cloned_dir = Path('cloned_repos')
-        if not cloned_dir.exists():
-            print("No cloned repositories found. Run clone_repos.py first.")
-            return results
-
-        for repo_dir in cloned_dir.iterdir():
-            if repo_dir.is_dir() and not repo_dir.name.startswith('.'):
-                print(f"Auditing {repo_dir.name}...")
-                repo_results = self.audit_repository(repo_dir)
-                results['repositories'].append(repo_results)
-                results['summary']['total_repos'] += 1
+        repos_dir = Path('repos')
+        scanned_any = False
+        
+        if repos_dir.exists():
+            for repo_dir in repos_dir.iterdir():
+                if repo_dir.is_dir() and not repo_dir.name.startswith('.'):
+                    print(f"Auditing {repo_dir.name}...")
+                    repo_results = self.audit_repository(repo_dir)
+                    results['repositories'].append(repo_results)
+                    results['summary']['total_repos'] += 1
+                    scanned_any = True
+        
+        # If no repos were scanned, audit security-central itself as fallback
+        if not scanned_any:
+            print("⚠️  No cloned repositories found in repos/ directory.")
+            print("   This is expected during initial setup or if repos couldn't be cloned.")
+            print("   Audit will run on security-central itself as fallback.")
+            
+            # Audit security-central itself
+            self_results = self.audit_repository(Path('.'))
+            self_results['name'] = 'security-central'
+            results['repositories'].append(self_results)
+            results['summary']['total_repos'] = 1
 
         # Calculate totals
         for repo in results['repositories']:

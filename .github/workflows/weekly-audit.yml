@@ -79,6 +79,12 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_SECURITY_WEBHOOK }}
         run: |
+          if [ -z "$SLACK_WEBHOOK" ]; then
+            echo "⚠️  SLACK_SECURITY_WEBHOOK not set - skipping Slack notification"
+            echo "   To enable Slack notifications, add SLACK_SECURITY_WEBHOOK secret"
+            exit 0
+          fi
+          
           python scripts/send_weekly_digest.py \
             --report weekly-audit.json \
             --slack-webhook "$SLACK_WEBHOOK"

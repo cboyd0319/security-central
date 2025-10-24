@@ -169,7 +169,7 @@ class AutoPatcher:
 
             # Simple string replacement (not perfect but good enough)
             import re
-            pattern = f'("{package}.*?")|(\\'{package}.*?\\')'
+            pattern = f'("{package}.*?")|(\'{package}.*?\')'
             replacement = f'"{package}>={fixed_version}"'
 
             new_content = re.sub(pattern, replacement, content)
@@ -275,8 +275,10 @@ def main():
 
     gh_token = os.environ.get('GH_TOKEN')
     if not gh_token:
-        print("ERROR: GH_TOKEN environment variable not set")
-        exit(1)
+        print("⚠️  WARNING: GH_TOKEN environment variable not set")
+        print("   PR creation will be skipped. This is expected during initial setup.")
+        print("   To enable PR creation, set the GH_TOKEN secret in your repository.")
+        return
 
     patcher = AutoPatcher(gh_token)
     patcher.create_prs(args.triage_file, args.auto_merge_safe_only)

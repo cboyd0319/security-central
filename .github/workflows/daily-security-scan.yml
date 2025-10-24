@@ -80,9 +80,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
         run: |
-          python scripts/create_patch_prs.py \
-            triage.json \
-            --auto-merge-safe-only
+          if [ -z "$GH_TOKEN" ]; then
+            echo "⚠️  REPO_ACCESS_TOKEN not set - skipping PR creation"
+            echo "   This is expected during initial setup. To enable PR creation:"
+            echo "   1. Create a Personal Access Token with 'repo' and 'workflow' scopes"
+            echo "   2. Add it as REPO_ACCESS_TOKEN secret in repository settings"
+          else
+            python scripts/create_patch_prs.py \
+              triage.json \
+              --auto-merge-safe-only
+          fi
 
       - name: Generate security report
         run: |
@@ -109,6 +116,12 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_SECURITY_WEBHOOK }}
         run: |
+          if [ -z "$SLACK_WEBHOOK" ]; then
+            echo "⚠️  SLACK_SECURITY_WEBHOOK not set - skipping Slack notification"
+            echo "   To enable Slack notifications, add SLACK_SECURITY_WEBHOOK secret"
+            exit 0
+          fi
+          
           CRITICAL=${{ steps.triage.outputs.critical_count }}
           HIGH=${{ steps.triage.outputs.high_count }}
 

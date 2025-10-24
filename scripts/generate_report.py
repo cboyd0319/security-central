@@ -5,8 +5,9 @@ Generate human-readable security reports.
 
 import json
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Dict
 
 
 def generate_report(triage_file: str, output_file: str):
@@ -14,7 +15,7 @@ def generate_report(triage_file: str, output_file: str):
     with open(triage_file) as f:
         triage = json.load(f)
 
-    report_date = datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
+    report_date = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
 
     report = f"""# Security Scan Report
 

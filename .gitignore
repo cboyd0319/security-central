@@ -15,13 +15,21 @@ build/
 # Cloned repositories (don't commit monitored repos)
 repos/
 
+# Generated reports (don't commit generated reports)
+docs/reports/**/*.md
+!docs/reports/.gitkeep
+
 # Scan results (generated files)
 findings.json
 triage.json
 findings.sarif
 *.sarif
 test-*.json
+test-*.md
 pre-vacation-scan.json
+weekly-audit.json
+health-report.json
+outdated-report.json
 
 # IDE
 .vscode/

@@ -17,19 +17,41 @@ def clone_repos(config_path: str = 'config/repos.yml', repos_dir: str = 'repos')
     repos_path = Path(repos_dir)
     repos_path.mkdir(exist_ok=True)
 
+    successful = 0
+    failed = []
+
     for repo in config['repositories']:
         repo_name = repo['name']
         repo_url = repo['url']
         repo_dir = repos_path / repo_name
 
-        if repo_dir.exists():
-            print(f"✓ {repo_name} already cloned, pulling latest...")
-            subprocess.run(['git', 'pull'], cwd=repo_dir, check=True)
-        else:
-            print(f"⬇ Cloning {repo_name}...")
-            subprocess.run(['git', 'clone', repo_url, str(repo_dir)], check=True)
+        try:
+            if repo_dir.exists():
+                print(f"✓ {repo_name} already cloned, pulling latest...")
+                result = subprocess.run(['git', 'pull'], cwd=repo_dir, 
+                                       capture_output=True, text=True, timeout=60)
+                if result.returncode != 0:
+                    print(f"  ⚠️  Pull failed: {result.stderr}")
+                    failed.append(repo_name)
+                else:
+                    successful += 1
+            else:
+                print(f"⬇ Cloning {repo_name}...")
+                result = subprocess.run(['git', 'clone', repo_url, str(repo_dir)], 
+                                       capture_output=True, text=True, timeout=120)
+                if result.returncode != 0:
+                    print(f"  ⚠️  Clone failed: {result.stderr}")
+                    failed.append(repo_name)
+                else:
+                    successful += 1
+        except Exception as e:
+            print(f"  ⚠️  Error with {repo_name}: {e}")
+            failed.append(repo_name)
 
-    print(f"\n✅ All {len(config['repositories'])} repositories ready")
+    print(f"\n✅ {successful}/{len(config['repositories'])} repositories ready")
+    if failed:
+        print(f"⚠️  Failed to clone: {', '.join(failed)}")
+        print("   (This is expected if repos don't exist yet or require authentication)")
 
 
 if __name__ == '__main__':

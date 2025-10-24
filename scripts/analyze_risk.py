@@ -6,7 +6,7 @@ Analyze and triage security findings by risk level.
 import json
 import argparse
 from typing import Dict, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class RiskAnalyzer:
@@ -46,7 +46,7 @@ class RiskAnalyzer:
                 })
 
         return {
-            'analysis_time': datetime.utcnow().isoformat(),
+            'analysis_time': datetime.now(timezone.utc).isoformat(),
             'total_findings': len(findings),
             'triaged': triaged,
             'auto_fixes': auto_fixes,
