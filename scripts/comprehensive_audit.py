@@ -8,7 +8,7 @@ import argparse
 import subprocess
 from pathlib import Path
 from typing import Dict, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class ComprehensiveAuditor:
@@ -20,7 +20,7 @@ class ComprehensiveAuditor:
     def audit(self, output_file: str):
         """Run comprehensive audit across all repositories."""
         results = {
-            'audit_time': datetime.utcnow().isoformat(),
+            'audit_time': datetime.now(timezone.utc).isoformat(),
             'repositories': [],
             'summary': {
                 'total_repos': 0,

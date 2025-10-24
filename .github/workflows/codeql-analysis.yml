@@ -2,9 +2,9 @@ name: CodeQL Analysis
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   schedule:
     - cron: '0 6 * * 1'  # Weekly on Mondays at 6 AM UTC
 
@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'python' ]
+        language: ['python']
 
     steps:
       - name: Checkout repository

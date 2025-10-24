@@ -5,7 +5,7 @@ Analyze dependency health metrics.
 
 import json
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List
 
 
@@ -16,7 +16,7 @@ class DependencyHealthAnalyzer:
             audit_data = json.load(f)
 
         results = {
-            'analysis_time': datetime.utcnow().isoformat(),
+            'analysis_time': datetime.now(timezone.utc).isoformat(),
             'repositories': [],
             'summary': {
                 'healthy': 0,

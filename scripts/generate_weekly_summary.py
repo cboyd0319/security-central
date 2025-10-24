@@ -5,7 +5,7 @@ Generate weekly summary report.
 
 import json
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -22,8 +22,8 @@ def generate_summary(audit_file: str, health_file: str, outdated_file: str, outp
     with open(outdated_file) as f:
         outdated = json.load(f)
 
-    report_date = datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
-    week = datetime.utcnow().strftime('%Y-W%V')
+    report_date = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
+    week = datetime.now(timezone.utc).strftime('%Y-W%V')
 
     report = f"""# Weekly Dependency Audit Summary
     
