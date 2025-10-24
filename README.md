@@ -1,11 +1,11 @@
 <div align="center">
+  <img src="docs/brand/security-central-logo.svg" width="120" alt="Security Central logo">
+  <h1>Security Central</h1>
+  <p><strong>Automated security monitoring for multi-repo projects</strong></p>
+  <p>Daily scans • Auto-patching • Emergency response • Zero manual work</p>
+</div>
 
-# Security Central
-
-### **Automated security monitoring for multi-repo projects**
-
-Daily scans • Auto-patching • Emergency response • Zero manual work
-
+<div align="center">
 [![Daily Security Scan](https://github.com/cboyd0319/security-central/actions/workflows/daily-security-scan.yml/badge.svg)](https://github.com/cboyd0319/security-central/actions/workflows/daily-security-scan.yml)
 [![Weekly Audit](https://github.com/cboyd0319/security-central/actions/workflows/weekly-audit.yml/badge.svg)](https://github.com/cboyd0319/security-central/actions/workflows/weekly-audit.yml)
 
@@ -13,7 +13,6 @@ Daily scans • Auto-patching • Emergency response • Zero manual work
 [Features](#-features) •
 [Workflows](#-workflows) •
 [Configuration](#-configuration)
-
 </div>
 
 ---
