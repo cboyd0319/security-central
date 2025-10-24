@@ -1,15 +1,11 @@
 from pathlib import Path
-from typing import Any
+from typing import Optional
 import yaml
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 
-class RepoConfig(BaseModel):
-    name: str
-    owner: str
-    languages: list[str]
-    scanners: list[str]
-    auto_fix: bool = True
-    critical_paths: list[str] = Field(default_factory=list)
+# Configuration loader for security-central
+# Note: Repository definitions are in config/repos.yml
+# This loader handles the scanning engine configuration from config/security-central.yaml
 
 class ScanningConfig(BaseModel):
     schedule: str
@@ -24,17 +20,41 @@ class SecurityPolicies(BaseModel):
     block_on_secrets: bool = True
     require_sarif: bool = True
 
+class ProjectConfig(BaseModel):
+    name: str
+    owner: str
+
 class SecurityCentralConfig(BaseModel):
+    """Configuration for the security-central scanning engine.
+
+    Repository definitions are loaded separately from config/repos.yml
+    """
     version: str
-    managed_repos: list[RepoConfig]
+    project: ProjectConfig
     scanning: ScanningConfig
     security_policies: SecurityPolicies
-    
+
     @classmethod
     def load(cls, config_path: Path = Path("config/security-central.yaml")):
+        """Load scanning configuration from security-central.yaml"""
         with open(config_path) as f:
             data = yaml.safe_load(f)
         return cls(**data)
 
-# Usage
-config = SecurityCentralConfig.load()
+class ReposConfig(BaseModel):
+    """Load repository definitions from repos.yml"""
+    repositories: list[dict]
+    notifications: Optional[dict] = None
+    schedule: Optional[dict] = None
+    safety_checks: Optional[dict] = None
+
+    @classmethod
+    def load(cls, config_path: Path = Path("config/repos.yml")):
+        """Load repository definitions from repos.yml"""
+        with open(config_path) as f:
+            data = yaml.safe_load(f)
+        return cls(**data)
+
+# Usage example:
+# scanning_config = SecurityCentralConfig.load()
+# repos_config = ReposConfig.load()

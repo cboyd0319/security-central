@@ -2,7 +2,7 @@ name: Security Central Orchestrator
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '0 9 * * *'  # Daily at 9 AM UTC (aligned with repos.yml)
   workflow_dispatch:
 
 permissions:
@@ -140,8 +140,7 @@ jobs:
             --status ${{ job.status }} \
             --findings findings-summary.json
         env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-          # ↑ NO GITHUB_TOKEN needed for Slack
+          SLACK_WEBHOOK: ${{ secrets.SLACK_SECURITY_WEBHOOK }}
           
       # ❌ NO TOKEN NEEDED - just uploading files
       - name: Upload Artifacts

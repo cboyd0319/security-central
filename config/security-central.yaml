@@ -2,38 +2,12 @@ version: "1.0"
 project:
   name: security-central
   owner: cboyd0319
-  
-managed_repos:
-  - name: PyGuard
-    owner: cboyd0319
-    languages: [python]
-    scanners: [pyguard, bandit, semgrep, ruff]
-    auto_fix: true
-    critical_paths: [src/, pyguard/]
-    
-  - name: BazBOM
-    owner: cboyd0319
-    languages: [python, java]
-    scanners: [pyguard, bandit, semgrep]
-    auto_fix: true
-    critical_paths: [src/, tools/]
-    
-  - name: PoshGuard
-    owner: cboyd0319
-    languages: [powershell]
-    scanners: [poshguard, scriptanalyzer]
-    auto_fix: true
-    critical_paths: [tools/, modules/]
-    
-  - name: JobSentinel
-    owner: cboyd0319
-    languages: [python, javascript]
-    scanners: [pyguard, bandit, eslint, semgrep]
-    auto_fix: true
-    critical_paths: [jsa/, frontend/]
+
+# Repository definitions moved to config/repos.yml
+# This file now contains only scanning engine configuration
 
 scanning:
-  schedule: "0 */6 * * *"  # Every 6 hours
+  schedule: "0 9 * * *"  # Daily at 9 AM UTC (aligned with repos.yml)
   parallel_scans: 4
   timeout_minutes: 30
   fail_on_critical: true
@@ -54,7 +28,7 @@ auto_fix:
 notifications:
   slack:
     enabled: true
-    webhook_url_secret: SLACK_WEBHOOK
+    webhook_url_secret: SLACK_SECURITY_WEBHOOK  # Standardized secret name
     channels:
       critical: "#security-critical"
       high: "#security-alerts"
