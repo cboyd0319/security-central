@@ -4,15 +4,6 @@ on:
   schedule:
     - cron: '0 9 * * *'  # Daily at 9 AM UTC (aligned with repos.yml)
   workflow_dispatch:
-    inputs:
-      target_repo:
-        description: 'Target specific repo (or "all")'
-        required: false
-        default: 'all'
-      force_full_scan:
-        description: 'Force full scan (ignore cache)'
-        type: boolean
-        default: false
 
 permissions:
   contents: write
@@ -30,54 +21,77 @@ jobs:
       max-parallel: 4
     
     steps:
+      # ❌ NO TOKEN NEEDED - just checking out Security Central
       - name: Checkout Security Central
         uses: actions/checkout@v4
         with:
           repository: cboyd0319/security-central
           path: security-central
           
+      # ✅ GENERATE TOKEN ONCE (use for everything below)
+      - name: Generate App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          repositories: |
+            security-central
+            PyGuard
+            BazBOM
+            PoshGuard
+            JobSentinel
+          
+      # ✅ TOKEN NEEDED - accessing private/managed repo
       - name: Checkout Target Repo
         uses: actions/checkout@v4
         with:
           repository: cboyd0319/${{ matrix.repo }}
           path: ${{ matrix.repo }}
-          token: ${{ secrets.GH_PAT }}
+          token: ${{ steps.app-token.outputs.token }}  # ← HERE
           
+      # ❌ NO TOKEN NEEDED - just installing packages
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
           
+      # ❌ NO TOKEN NEEDED - local pip install
       - name: Install Dependencies
         run: |
           pip install -r security-central/requirements.txt
           pip install pyguard bandit semgrep ruff
           
-      - name: Determine Scan Type
+      # ❌ NO TOKEN NEEDED - runs locally
+      - name: Detect Languages
         id: scan-type
         run: |
           cd ${{ matrix.repo }}
           LANGUAGES=$(python ../security-central/scripts/detect_languages.py)
           echo "languages=$LANGUAGES" >> $GITHUB_OUTPUT
           
-      - name: Scan Python Code
+      # ❌ NO TOKEN NEEDED - local scanning
+      - name: Run PyGuard
         if: contains(steps.scan-type.outputs.languages, 'python')
-        uses: ./security-central/.github/actions/scan-python
-        with:
-          repo_path: ${{ matrix.repo }}
+        run: |
+          cd ${{ matrix.repo }}
+          pyguard . --scan-only --sarif --no-html
           
-      - name: Scan PowerShell Code
-        if: contains(steps.scan-type.outputs.languages, 'powershell')
-        uses: ./security-central/.github/actions/scan-powershell
-        with:
-          repo_path: ${{ matrix.repo }}
+      # ❌ NO TOKEN NEEDED - local scanning
+      - name: Run Bandit
+        if: contains(steps.scan-type.outputs.languages, 'python')
+        run: |
+          cd ${{ matrix.repo }}
+          bandit -r . -f sarif -o bandit-report.sarif || true
           
+      # ❌ NO TOKEN NEEDED - local file operations
       - name: Generate SBOM
         run: |
           python security-central/scripts/generate_sbom.py \
             --repo ${{ matrix.repo }} \
             --output ${{ matrix.repo }}/sbom.json
             
+      # ❌ NO TOKEN NEEDED - local analysis
       - name: Analyze Findings
         id: analyze
         run: |
@@ -85,6 +99,7 @@ jobs:
             --sarif ${{ matrix.repo }}/aggregated.sarif \
             --output findings-summary.json
             
+      # ✅ TOKEN NEEDED - creating GitHub issues via API
       - name: Create Issues for Critical Findings
         if: steps.analyze.outputs.critical_count > 0
         run: |
@@ -93,8 +108,9 @@ jobs:
             --findings findings-summary.json \
             --severity critical
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}  # ← HERE
           
+      # ✅ TOKEN NEEDED - pushing changes & creating PRs
       - name: Auto-Fix if Enabled
         if: steps.analyze.outputs.auto_fixable > 0
         run: |
@@ -103,8 +119,18 @@ jobs:
             --findings findings-summary.json \
             --create-pr
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}  # ← HERE
           
+      # ✅ TOKEN NEEDED - uploading to GitHub Security tab
+      - name: Upload SARIF to GitHub
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ matrix.repo }}/aggregated.sarif
+          category: ${{ matrix.repo }}-security-scan
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}  # ← HERE
+          
+      # ❌ NO TOKEN NEEDED - external webhook (Slack)
       - name: Notify Slack
         if: always()
         run: |
@@ -116,6 +142,7 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_SECURITY_WEBHOOK }}
           
+      # ❌ NO TOKEN NEEDED - just uploading files
       - name: Upload Artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -124,4 +151,3 @@ jobs:
           path: |
             ${{ matrix.repo }}/aggregated.sarif
             findings-summary.json
-            ${{ matrix.repo }}/sbom.json
