@@ -23,7 +23,7 @@ jobs:
     steps:
       # ❌ NO TOKEN NEEDED - just checking out Security Central
       - name: Checkout Security Central
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: cboyd0319/security-central
           path: security-central
@@ -31,7 +31,7 @@ jobs:
       # ✅ GENERATE TOKEN ONCE (use for everything below)
       - name: Generate App Token
         id: app-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
@@ -44,7 +44,7 @@ jobs:
           
       # ✅ TOKEN NEEDED - accessing private/managed repo
       - name: Checkout Target Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: cboyd0319/${{ matrix.repo }}
           path: ${{ matrix.repo }}
@@ -52,7 +52,7 @@ jobs:
           
       # ❌ NO TOKEN NEEDED - just installing packages
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.13'
           
@@ -123,7 +123,7 @@ jobs:
           
       # ✅ TOKEN NEEDED - uploading to GitHub Security tab
       - name: Upload SARIF to GitHub
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: ${{ matrix.repo }}/aggregated.sarif
           category: ${{ matrix.repo }}-security-scan
@@ -145,7 +145,7 @@ jobs:
       # ❌ NO TOKEN NEEDED - just uploading files
       - name: Upload Artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: ${{ matrix.repo }}-scan-results
           path: |
