@@ -132,15 +132,21 @@ class MultiRepoScanner:
                 if result.stdout:
                     audit_data = json.loads(result.stdout)
                     for vuln in audit_data.get('dependencies', []):
+                        # Check if vulns list is not empty before accessing
+                        vulns_list = vuln.get('vulns', [])
+                        if not vulns_list:
+                            continue
+
+                        first_vuln = vulns_list[0]
                         findings.append({
                             'repo': repo_name,
                             'type': 'python_dependency',
-                            'severity': self.map_severity(vuln.get('vulns', [{}])[0].get('severity', 'MEDIUM')),
+                            'severity': self.map_severity(first_vuln.get('severity', 'MEDIUM')),
                             'package': vuln['name'],
                             'version': vuln['version'],
-                            'cve': vuln.get('vulns', [{}])[0].get('id', 'N/A'),
-                            'advisory': vuln.get('vulns', [{}])[0].get('description', ''),
-                            'fixed_in': vuln.get('vulns', [{}])[0].get('fix_versions', []),
+                            'cve': first_vuln.get('id', 'N/A'),
+                            'advisory': first_vuln.get('description', ''),
+                            'fixed_in': first_vuln.get('fix_versions', []),
                             'tool': 'pip-audit',
                             'file': str(req_file.relative_to(repo_dir))
                         })
@@ -154,21 +160,30 @@ class MultiRepoScanner:
                     '--file', str(req_file)
                 ], capture_output=True, text=True, timeout=120)
 
-                if result.stdout and result.stdout != '[]':
-                    safety_data = json.loads(result.stdout)
-                    for vuln in safety_data:
-                        findings.append({
-                            'repo': repo_name,
-                            'type': 'python_dependency',
-                            'severity': self.map_severity(vuln.get('severity', 'MEDIUM')),
-                            'package': vuln['package'],
-                            'version': vuln['installed_version'],
-                            'cve': vuln.get('CVE', 'N/A'),
-                            'advisory': vuln.get('advisory', ''),
-                            'fixed_in': vuln.get('vulnerable_spec', []),
-                            'tool': 'safety',
-                            'file': str(req_file.relative_to(repo_dir))
-                        })
+                # Only process if we have output and it looks like JSON
+                if result.stdout and result.stdout.strip().startswith(('[', '{')):
+                    try:
+                        safety_data = json.loads(result.stdout)
+                        # Safety can return different formats, handle both list and dict
+                        if isinstance(safety_data, dict):
+                            safety_data = safety_data.get('vulnerabilities', [])
+
+                        for vuln in safety_data:
+                            findings.append({
+                                'repo': repo_name,
+                                'type': 'python_dependency',
+                                'severity': self.map_severity(vuln.get('severity', 'MEDIUM')),
+                                'package': vuln.get('package', vuln.get('package_name', 'Unknown')),
+                                'version': vuln.get('installed_version', vuln.get('analyzed_version', 'Unknown')),
+                                'cve': vuln.get('CVE', vuln.get('cve', 'N/A')),
+                                'advisory': vuln.get('advisory', vuln.get('description', '')),
+                                'fixed_in': vuln.get('vulnerable_spec', vuln.get('more_info_url', [])),
+                                'tool': 'safety',
+                                'file': str(req_file.relative_to(repo_dir))
+                            })
+                    except json.JSONDecodeError:
+                        # Safety returned invalid JSON, skip silently
+                        pass
             except Exception as e:
                 print(f"    ⚠️  Safety check failed: {e}")
 
