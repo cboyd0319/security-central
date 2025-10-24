@@ -53,3 +53,6 @@ secrets.yml
 # Temporary files
 tmp/
 *.tmp
+
+# Claude
+.claude
