@@ -1,144 +1,228 @@
-# Security-Central Quickstart
+# Security Central - Quickstart Guide
 
-Get up and running in 10 minutes.
+Get up and running with Security Central in 5 minutes.
 
-## What You Just Got
+---
 
-A **complete automated security system** that:
-- ✅ Scans all 4 repos daily for vulnerabilities
-- ✅ Auto-patches security fixes
-- ✅ Alerts you on Slack/PagerDuty for CRITICAL issues
-- ✅ Syncs dependencies and GitHub Actions across repos
-- ✅ Works while you're on vacation
+## Prerequisites
 
-## Setup (10 Minutes)
+Before you begin, ensure you have:
 
-### 1. Run Setup Script
+- GitHub account with admin access to the repositories you want to monitor
+- GitHub Personal Access Token with `repo` and `workflow` permissions
+- (Optional) Slack workspace with incoming webhook configured
+- (Optional) PagerDuty account with integration key for critical alerts
+
+---
+
+## Setup Steps
+
+### 1. Clone the Repository
 
 ```bash
+git clone https://github.com/cboyd0319/security-central
 cd security-central
-./setup.sh
 ```
 
-This installs dependencies and verifies prerequisites.
+### 2. Configure Your Repositories
 
-### 2. Add GitHub Token
+Edit `config/repos.yml` to add your repositories:
+
+```yaml
+repositories:
+  - name: YourRepo
+    url: https://github.com/your-username/your-repo
+    tech_stack:
+      - python  # or powershell, npm, java, kotlin, scala
+    security_tools:
+      - Bandit
+      - Safety
+      - pip-audit
+    auto_merge_rules:
+      patch: true          # Auto-merge patch updates (1.0.X)
+      minor: false         # Require review for minor (1.X.0)
+      security: true       # Always auto-merge security fixes
+      breaking: false      # Never auto-merge breaking changes
+    notification_threshold: HIGH  # Only notify for HIGH+ severity
+```
+
+### 3. Configure GitHub Secrets
+
+Set up the required secrets in your GitHub repository:
 
 ```bash
-# Create token: https://github.com/settings/tokens/new
-# Scopes: repo, workflow
-
+# Required: GitHub Personal Access Token
 gh secret set REPO_ACCESS_TOKEN
 # Paste your token when prompted
-```
 
-### 3. (Optional) Add Slack Webhook
-
-```bash
-# Get webhook: https://api.slack.com/messaging/webhooks
+# Optional: Slack webhook for notifications
 gh secret set SLACK_SECURITY_WEBHOOK
+# Paste your Slack webhook URL when prompted
+
+# Optional: PagerDuty integration key for critical alerts
+gh secret set PAGERDUTY_INTEGRATION_KEY
+# Paste your PagerDuty key when prompted
 ```
 
-### 4. Push to GitHub
+**How to create these secrets:**
+
+- **REPO_ACCESS_TOKEN**: Go to GitHub Settings > Developer Settings > Personal Access Tokens > Generate new token (classic). Select `repo` and `workflow` scopes.
+- **SLACK_SECURITY_WEBHOOK**: In Slack, go to Apps > Incoming Webhooks > Add to Slack > Choose channel > Copy webhook URL
+- **PAGERDUTY_INTEGRATION_KEY**: In PagerDuty, go to Services > Your Service > Integrations > Add Integration > Events API V2 > Copy Integration Key
+
+### 4. Run Initial Setup (Optional)
+
+If you want to install dependencies locally for testing:
 
 ```bash
-git add .
-git commit -m "chore: initial security-central setup"
-git push origin main
+bash setup.sh
 ```
 
-### 5. Trigger First Scan
+This will:
+- Install Python 3.12+ if needed
+- Create a virtual environment
+- Install all required dependencies
+- Verify configuration files
+
+### 5. Test the Scanner
+
+Trigger a manual workflow run to test:
 
 ```bash
 gh workflow run daily-security-scan.yml
 ```
 
-View results:
-```bash
-gh run list --workflow=daily-security-scan.yml
-gh run view <RUN_ID>
-```
-
-## Done!
-
-**Daily scans**: 9 AM UTC automatically
-**Weekly audits**: Sunday 2 AM UTC
-**Housekeeping**: Monday 3 AM UTC
-
-## Before Vacation
+Then check the workflow status:
 
 ```bash
-python3 scripts/pre_vacation_hardening.py
+gh run list --workflow=daily-security-scan.yml --limit 1
 ```
 
-This will:
-1. Update all dependencies NOW
-2. Enable auto-merge
-3. Test alerts
-4. Verify workflows
+### 6. Done!
 
-Then enjoy your vacation! 🏖️
+That's it! Security Central will now:
+
+- Scan all your repositories daily at 9 AM UTC
+- Auto-create PRs for security fixes
+- Send Slack notifications for HIGH+ severity issues
+- Upload findings to GitHub Security tab
+- Run weekly audits every Sunday
+- Perform housekeeping tasks every Monday
 
 ---
 
-## File Structure
+## Next Steps
 
-```
-security-central/
-├── .github/workflows/        # Automation
-│   ├── daily-security-scan.yml
-│   ├── weekly-audit.yml
-│   ├── emergency-response.yml
-│   └── housekeeping.yml
-├── config/                   # Settings
-│   ├── repos.yml            # Edit this!
-│   ├── security-policies.yml
-│   └── common-dependencies.yml
-├── scripts/                  # Core logic
-│   ├── scan_all_repos.py
-│   ├── create_patch_prs.py
-│   └── housekeeping/
-└── docs/                     # Reports
+### Enable Auto-Merge (Recommended)
+
+For automatic patch merging to work, enable auto-merge on your repositories:
+
+```bash
+gh repo edit your-username/your-repo --enable-auto-merge
 ```
 
-## Key Files to Edit
+### Configure Vacation Mode
 
-1. **config/repos.yml** - Add/remove repositories
-2. **config/security-policies.yml** - Adjust severity thresholds
-3. **config/common-dependencies.yml** - Sync specific versions
+When going on vacation, increase scan frequency:
 
-## Monitoring
+```bash
+gh variable set VACATION_MODE --body "true"
+```
 
-- **GitHub Actions**: [Workflows](https://github.com/cboyd0319/security-central/actions)
-- **Reports**: `docs/reports/daily/`
-- **Slack**: #security-alerts channel
+This switches from daily scans to hourly scans and enables more aggressive auto-patching.
+
+### Review Configuration Files
+
+- `config/repos.yml` - Repository definitions and auto-merge rules
+- `config/security-policies.yml` - Severity mappings and CVE sources
+- `config/common-dependencies.yml` - Synchronized dependency versions
+- `config/security-central.yaml` - Scanning schedule and engine config
+
+### Monitor Your Security Status
+
+- **GitHub Actions**: View real-time workflow status at `https://github.com/your-username/security-central/actions`
+- **GitHub Security**: See aggregated findings at `https://github.com/your-username/security-central/security`
+- **Daily Reports**: Check `docs/reports/daily/` for detailed scan results
+
+---
+
+## Common Workflows
+
+### Manual Security Scan
+
+Trigger an immediate scan across all repositories:
+
+```bash
+gh workflow run daily-security-scan.yml
+```
+
+### Emergency Response
+
+Respond to a zero-day CVE:
+
+```bash
+gh workflow run emergency-response.yml \
+  -f cve=CVE-2024-12345 \
+  -f affected_package=requests \
+  -f severity=CRITICAL
+```
+
+### Weekly Audit
+
+Run a deep dependency analysis:
+
+```bash
+gh workflow run weekly-audit.yml
+```
+
+### Housekeeping
+
+Sync Actions, clean branches, update dependencies:
+
+```bash
+gh workflow run housekeeping.yml
+```
+
+---
 
 ## Troubleshooting
 
-**Scans failing?**
+### Workflow Not Running?
+
+Check if the workflow file syntax is correct:
+
 ```bash
-gh run list --workflow=daily-security-scan.yml
-gh run view <RUN_ID> --log
+gh workflow view daily-security-scan.yml
 ```
 
-**PRs not auto-merging?**
+### PRs Not Auto-Merging?
+
+Ensure auto-merge is enabled:
+
 ```bash
-gh repo edit cboyd0319/PoshGuard --enable-auto-merge
+gh repo edit your-username/your-repo --enable-auto-merge
 ```
 
-**No notifications?**
+And verify branch protection rules allow auto-merge.
+
+### No Slack Notifications?
+
+Test your webhook:
+
 ```bash
-gh secret list  # Verify secrets are set
+curl -X POST "$SLACK_WEBHOOK_URL" \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Test from Security Central"}'
 ```
 
 ---
 
-## Full Documentation
+## Getting Help
 
-- **Complete setup**: [docs/SETUP.md](docs/SETUP.md)
-- **Architecture**: [README.md](README.md)
-- **Config reference**: [config/](config/)
+- **Documentation**: See `docs/SETUP.md` for detailed setup instructions
+- **GitHub Issues**: Report bugs at `https://github.com/cboyd0319/security-central/issues`
+- **Examples**: Check `docs/MASTER_PLAN.md` for use cases and roadmap
 
 ---
 
-**Questions?** Open an issue or check the docs!
+**You're all set!** Security Central is now protecting your repositories.
