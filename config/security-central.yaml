@@ -1,0 +1,77 @@
+version: "1.0"
+project:
+  name: security-central
+  owner: cboyd0319
+  
+managed_repos:
+  - name: PyGuard
+    owner: cboyd0319
+    languages: [python]
+    scanners: [pyguard, bandit, semgrep, ruff]
+    auto_fix: true
+    critical_paths: [src/, pyguard/]
+    
+  - name: BazBOM
+    owner: cboyd0319
+    languages: [python, java]
+    scanners: [pyguard, bandit, semgrep]
+    auto_fix: true
+    critical_paths: [src/, tools/]
+    
+  - name: PoshGuard
+    owner: cboyd0319
+    languages: [powershell]
+    scanners: [poshguard, scriptanalyzer]
+    auto_fix: true
+    critical_paths: [tools/, modules/]
+    
+  - name: JobSentinel
+    owner: cboyd0319
+    languages: [python, javascript]
+    scanners: [pyguard, bandit, eslint, semgrep]
+    auto_fix: true
+    critical_paths: [jsa/, frontend/]
+
+scanning:
+  schedule: "0 */6 * * *"  # Every 6 hours
+  parallel_scans: 4
+  timeout_minutes: 30
+  fail_on_critical: true
+  
+security_policies:
+  max_critical_age_days: 1      # Critical vulns must be fixed in 1 day
+  max_high_age_days: 7          # High vulns in 7 days
+  max_medium_age_days: 30       # Medium vulns in 30 days
+  block_on_secrets: true
+  require_sarif: true
+  
+auto_fix:
+  enabled: true
+  create_pr: true
+  auto_merge_if_tests_pass: false  # Always require human approval
+  max_fixes_per_run: 20
+  
+notifications:
+  slack:
+    enabled: true
+    webhook_url_secret: SLACK_WEBHOOK
+    channels:
+      critical: "#security-critical"
+      high: "#security-alerts"
+      info: "#security-info"
+  
+  github:
+    create_issues: true
+    issue_labels: ["security", "automated"]
+    assign_to_repo_owner: true
+
+sbom:
+  formats: [cyclonedx, spdx]
+  include_dev_deps: false
+  sign_sboms: true
+  upload_to_dependency_graph: true
+
+compliance:
+  frameworks: [OWASP, CWE, NIST, SLSA]
+  generate_reports: true
+  report_schedule: "0 0 * * 0"  # Weekly on Sunday
