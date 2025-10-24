@@ -1,0 +1,53 @@
+name: 'Scan Python Repository'
+description: 'Run PyGuard, Bandit, Semgrep on Python code'
+inputs:
+  repo_path:
+    description: 'Path to repository'
+    required: true
+  upload_sarif:
+    description: 'Upload SARIF to GitHub'
+    required: false
+    default: 'true'
+outputs:
+  sarif_file:
+    description: 'Path to aggregated SARIF file'
+    value: ${{ steps.aggregate.outputs.sarif_file }}
+  findings_count:
+    description: 'Total findings count'
+    value: ${{ steps.aggregate.outputs.count }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Run PyGuard
+      shell: bash
+      run: |
+        cd ${{ inputs.repo_path }}
+        pyguard . --scan-only --sarif --no-html
+        
+    - name: Run Bandit
+      shell: bash
+      run: |
+        cd ${{ inputs.repo_path }}
+        bandit -r . -f sarif -o bandit-report.sarif || true
+        
+    - name: Run Semgrep
+      shell: bash
+      run: |
+        cd ${{ inputs.repo_path }}
+        semgrep scan --config=auto --sarif -o semgrep-report.sarif || true
+        
+    - name: Aggregate SARIF
+      id: aggregate
+      shell: bash
+      run: |
+        python $GITHUB_WORKSPACE/scripts/aggregate_sarif.py \
+          --input ${{ inputs.repo_path }}/*.sarif \
+          --output ${{ inputs.repo_path }}/aggregated.sarif
+        echo "sarif_file=${{ inputs.repo_path }}/aggregated.sarif" >> $GITHUB_OUTPUT
+        
+    - name: Upload SARIF
+      if: inputs.upload_sarif == 'true'
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ steps.aggregate.outputs.sarif_file }}
