@@ -21,7 +21,11 @@ triage.json
 findings.sarif
 *.sarif
 test-*.json
+test-*.md
 pre-vacation-scan.json
+weekly-audit.json
+health-report.json
+outdated-report.json
 
 # IDE
 .vscode/
