@@ -180,7 +180,7 @@ gh workflow run weekly-audit.yml
 Sync Actions, clean branches, update dependencies:
 
 ```bash
-gh workflow run housekeeping.yml
+gh workflow run orchestrator.yml
 ```
 
 ---
