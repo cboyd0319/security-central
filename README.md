@@ -6,6 +6,7 @@
 </div>
 
 <div align="center">
+
 [![Daily Security Scan](https://github.com/cboyd0319/security-central/actions/workflows/daily-security-scan.yml/badge.svg)](https://github.com/cboyd0319/security-central/actions/workflows/daily-security-scan.yml)
 [![Weekly Audit](https://github.com/cboyd0319/security-central/actions/workflows/weekly-audit.yml/badge.svg)](https://github.com/cboyd0319/security-central/actions/workflows/weekly-audit.yml)
 
@@ -13,6 +14,7 @@
 [Features](#-features) •
 [Workflows](#-workflows) •
 [Configuration](#-configuration)
+
 </div>
 
 ---
