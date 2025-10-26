@@ -9,12 +9,12 @@ Provides consistent logging across all scripts with:
 - File and console output
 """
 
-import logging
 import json
+import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 
 class JSONFormatter(logging.Formatter):
@@ -30,23 +30,23 @@ class JSONFormatter(logging.Formatter):
             JSON string with log data
         """
         log_data = {
-            'timestamp': datetime.now(timezone.utc).isoformat(),
-            'level': record.levelname,
-            'logger': record.name,
-            'message': record.getMessage(),
-            'module': record.module,
-            'function': record.funcName,
-            'line': record.lineno,
-            'process': record.process,
-            'thread': record.thread
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "module": record.module,
+            "function": record.funcName,
+            "line": record.lineno,
+            "process": record.process,
+            "thread": record.thread,
         }
 
         # Add exception info if present
         if record.exc_info:
-            log_data['exception'] = self.formatException(record.exc_info)
+            log_data["exception"] = self.formatException(record.exc_info)
 
         # Add extra fields from logger.info("msg", extra={'key': 'value'})
-        if hasattr(record, 'extra_data'):
+        if hasattr(record, "extra_data"):
             log_data.update(record.extra_data)
 
         return json.dumps(log_data)
@@ -73,7 +73,7 @@ class ContextFilter(logging.Filter):
         Returns:
             Always True (don't filter out records)
         """
-        if not hasattr(record, 'extra_data'):
+        if not hasattr(record, "extra_data"):
             record.extra_data = {}
         record.extra_data.update(self.context)
         return True
@@ -85,7 +85,7 @@ def setup_logging(
     json_format: bool = False,
     log_file: Optional[str] = None,
     console_output: bool = True,
-    context: Optional[Dict[str, Any]] = None
+    context: Optional[Dict[str, Any]] = None,
 ) -> logging.Logger:
     """Set up structured logging for a script.
 
@@ -127,8 +127,8 @@ def setup_logging(
         else:
             # Human-readable format with colors (if terminal supports it)
             formatter = ColoredFormatter(
-                '%(asctime)s [%(levelname)-8s] %(name)s:%(funcName)s:%(lineno)d - %(message)s',
-                datefmt='%Y-%m-%d %H:%M:%S'
+                "%(asctime)s [%(levelname)-8s] %(name)s:%(funcName)s:%(lineno)d - %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
             )
             console_handler.setFormatter(formatter)
 
@@ -157,12 +157,12 @@ class ColoredFormatter(logging.Formatter):
 
     # ANSI color codes
     COLORS = {
-        'DEBUG': '\033[36m',      # Cyan
-        'INFO': '\033[32m',       # Green
-        'WARNING': '\033[33m',    # Yellow
-        'ERROR': '\033[31m',      # Red
-        'CRITICAL': '\033[35m',   # Magenta
-        'RESET': '\033[0m'        # Reset
+        "DEBUG": "\033[36m",  # Cyan
+        "INFO": "\033[32m",  # Green
+        "WARNING": "\033[33m",  # Yellow
+        "ERROR": "\033[31m",  # Red
+        "CRITICAL": "\033[35m",  # Magenta
+        "RESET": "\033[0m",  # Reset
     }
 
     def format(self, record: logging.LogRecord) -> str:
@@ -175,7 +175,7 @@ class ColoredFormatter(logging.Formatter):
             Formatted string with ANSI colors
         """
         # Check if stdout is a terminal
-        if hasattr(sys.stdout, 'isatty') and sys.stdout.isatty():
+        if hasattr(sys.stdout, "isatty") and sys.stdout.isatty():
             # Add color to level name
             levelname = record.levelname
             if levelname in self.COLORS:
@@ -248,26 +248,26 @@ def setup_file_logging(log_file: str, verbose: bool = False) -> logging.Logger:
         level=level,
         json_format=True,  # Always JSON for files
         log_file=log_file,
-        console_output=True
+        console_output=True,
     )
 
 
 # Example usage patterns
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Example 1: Basic usage
     logger = setup_logging(__name__)
     logger.info("Basic logging example")
 
     # Example 2: With context
-    logger = setup_logging(__name__, context={'script': 'scan_all_repos', 'run_id': '12345'})
-    logger.info("Scanning repository", extra={'repo': 'security-central'})
+    logger = setup_logging(__name__, context={"script": "scan_all_repos", "run_id": "12345"})
+    logger.info("Scanning repository", extra={"repo": "security-central"})
 
     # Example 3: JSON format for automation
     json_logger = setup_logging(__name__, json_format=True)
-    json_logger.info("JSON log entry", extra={'count': 42, 'status': 'success'})
+    json_logger.info("JSON log entry", extra={"count": 42, "status": "success"})
 
     # Example 4: File logging
-    file_logger = setup_file_logging('logs/security-central.log')
+    file_logger = setup_file_logging("logs/security-central.log")
     file_logger.info("This goes to file and console")
 
     # Example 5: Debug level
@@ -281,4 +281,6 @@ if __name__ == '__main__':
     try:
         raise ValueError("Something went wrong")
     except Exception as e:
-        debug_logger.error("Caught exception", extra={'error_type': type(e).__name__}, exc_info=True)
+        debug_logger.error(
+            "Caught exception", extra={"error_type": type(e).__name__}, exc_info=True
+        )

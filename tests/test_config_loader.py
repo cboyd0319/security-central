@@ -1,21 +1,22 @@
 """Tests for config_loader.py"""
 
+import os
+import sys
+from pathlib import Path
+
 import pytest
 import yaml
-from pathlib import Path
 from pydantic import ValidationError
-import sys
-import os
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from scripts.config_loader import (
-    SecurityCentralConfig,
+    ProjectConfig,
     ReposConfig,
     ScanningConfig,
+    SecurityCentralConfig,
     SecurityPolicies,
-    ProjectConfig
 )
 
 
@@ -51,19 +52,21 @@ class TestSecurityCentralConfig:
     def test_validation_error_missing_required_field(self, tmp_path):
         """Test validation error when required field is missing."""
         config_file = tmp_path / "incomplete.yaml"
-        config_file.write_text(yaml.dump({
-            "version": "1.0",
-            # Missing project, scanning, security_policies
-        }))
+        config_file.write_text(
+            yaml.dump(
+                {
+                    "version": "1.0",
+                    # Missing project, scanning, security_policies
+                }
+            )
+        )
 
         with pytest.raises(ValidationError):
             SecurityCentralConfig.load(config_file)
 
     def test_scanning_config_defaults(self):
         """Test ScanningConfig with default values."""
-        config = ScanningConfig(
-            schedule="0 9 * * *"
-        )
+        config = ScanningConfig(schedule="0 9 * * *")
 
         assert config.parallel_scans == 4  # Default value
         assert config.timeout_minutes == 30  # Default value
@@ -94,14 +97,15 @@ class TestReposConfig:
     def test_repos_config_optional_fields(self, tmp_path):
         """Test ReposConfig with minimal required fields."""
         repos_file = tmp_path / "minimal-repos.yml"
-        repos_file.write_text(yaml.dump({
-            "repositories": [
+        repos_file.write_text(
+            yaml.dump(
                 {
-                    "name": "minimal-repo",
-                    "url": "https://github.com/test/minimal"
+                    "repositories": [
+                        {"name": "minimal-repo", "url": "https://github.com/test/minimal"}
+                    ]
                 }
-            ]
-        }))
+            )
+        )
 
         config = ReposConfig.load(repos_file)
 
@@ -116,10 +120,7 @@ class TestConfigValidation:
     def test_valid_scanning_config(self):
         """Test valid scanning configuration."""
         config = ScanningConfig(
-            schedule="0 9 * * *",
-            parallel_scans=4,
-            timeout_minutes=30,
-            fail_on_critical=True
+            schedule="0 9 * * *", parallel_scans=4, timeout_minutes=30, fail_on_critical=True
         )
 
         assert config.schedule == "0 9 * * *"
@@ -132,7 +133,7 @@ class TestConfigValidation:
             max_high_age_days=7,
             max_medium_age_days=30,
             block_on_secrets=True,
-            require_sarif=True
+            require_sarif=True,
         )
 
         assert policies.max_critical_age_days == 1
@@ -140,10 +141,7 @@ class TestConfigValidation:
 
     def test_project_config(self):
         """Test project configuration."""
-        project = ProjectConfig(
-            name="test-project",
-            owner="test-owner"
-        )
+        project = ProjectConfig(name="test-project", owner="test-owner")
 
         assert project.name == "test-project"
         assert project.owner == "test-owner"

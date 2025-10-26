@@ -2,21 +2,29 @@
 """Auto-create GitHub issues for security findings."""
 
 import json
-from pathlib import Path
-from typing import Any
+import logging
 import os
+from pathlib import Path
+from time import sleep
+from typing import Any
+
 from github import Github, GithubException
+
+from utils import safe_open
+
+logger = logging.getLogger(__name__)
+
 
 class IssueCreator:
     """Create GitHub issues from security findings."""
-    
+
     SEVERITY_LABELS = {
         "critical": ["security", "critical", "P0"],
         "high": ["security", "high", "P1"],
         "medium": ["security", "medium", "P2"],
         "low": ["security", "low", "P3"],
     }
-    
+
     ISSUE_TEMPLATE = """
 ## Security Finding
 
@@ -46,66 +54,144 @@ class IssueCreator:
 *Finding ID: `{finding_id}`*
 *Detected: {timestamp}*
 """
-    
+
     def __init__(self, github_token: str):
         self.gh = Github(github_token)
-        
+
+    def _create_issue_with_retry(
+        self, repo, title: str, body: str, labels: list[str], max_retries: int = 3
+    ):
+        """Create issue with rate limit handling and retry logic.
+
+        Args:
+            repo: GitHub repository object
+            title: Issue title
+            body: Issue body
+            labels: Issue labels
+            max_retries: Maximum number of retry attempts
+
+        Returns:
+            Created issue object
+
+        Raises:
+            GithubException: If all retry attempts fail
+        """
+        for attempt in range(max_retries):
+            try:
+                issue = repo.create_issue(title=title, body=body, labels=labels)
+                return issue
+            except GithubException as e:
+                # Handle rate limiting
+                if e.status == 403 and "rate limit" in str(e).lower():
+                    if attempt < max_retries - 1:
+                        wait_time = 60 * (attempt + 1)  # Exponential backoff
+                        logger.warning(f"Rate limit hit. Waiting {wait_time}s before retry...")
+                        sleep(wait_time)
+                        continue
+                    else:
+                        logger.error("Rate limit exceeded after all retries")
+                        raise
+
+                # Handle secondary rate limiting
+                if e.status == 403 and "secondary rate limit" in str(e).lower():
+                    if attempt < max_retries - 1:
+                        wait_time = 30
+                        logger.warning(f"Secondary rate limit hit. Waiting {wait_time}s...")
+                        sleep(wait_time)
+                        continue
+                    else:
+                        raise
+
+                # For other errors, raise immediately
+                raise
+
+        raise GithubException(500, "Max retries exceeded")
+
     def create_issues_from_sarif(
         self,
         repo_full_name: str,
         sarif_path: Path,
-        severity_threshold: str = "high"
+        severity_threshold: str = "high",
     ) -> list[str]:
-        """Create issues from SARIF findings."""
-        
-        with open(sarif_path) as f:
-            sarif = json.load(f)
-        
+        """Create issues from SARIF findings.
+
+        Args:
+            repo_full_name: Repository in format 'owner/repo'
+            sarif_path: Path to SARIF file
+            severity_threshold: Minimum severity level to create issues for
+
+        Returns:
+            List of created issue URLs
+
+        Raises:
+            ValueError: If repo_full_name format is invalid or SARIF is malformed
+            FileNotFoundError: If SARIF file doesn't exist
+            GithubException: If repository access fails
+        """
+        # Validate input
+        if "/" not in repo_full_name or repo_full_name.count("/") != 1:
+            raise ValueError(f"Invalid repo format: {repo_full_name}. Expected 'owner/repo'")
+
+        if not sarif_path.exists():
+            raise FileNotFoundError(f"SARIF file not found: {sarif_path}")
+
+        # Load and validate SARIF
+        try:
+            with safe_open(sarif_path, "r", allowed_base=False) as f:
+                sarif = json.load(f)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON in SARIF file: {e}")
+
+        if not isinstance(sarif.get("runs"), list):
+            raise ValueError("Invalid SARIF format: missing or invalid 'runs' array")
+
+        logger.info(f"Processing SARIF file: {sarif_path}")
+        logger.info(f"Creating issues for repository: {repo_full_name}")
+        logger.info(f"Severity threshold: {severity_threshold}")
+
         repo = self.gh.get_repo(repo_full_name)
         created_issues = []
-        
+
         for run in sarif.get("runs", []):
             tool_name = run.get("tool", {}).get("driver", {}).get("name", "Unknown")
-            
+
             for result in run.get("results", []):
                 severity = self._get_severity(result)
-                
+
                 # Skip if below threshold
                 if not self._meets_threshold(severity, severity_threshold):
+                    logger.debug(
+                        f"Skipping finding (below threshold): {result.get('ruleId', 'unknown')}"
+                    )
                     continue
-                
+
                 # Check if issue already exists
                 finding_id = self._generate_finding_id(result)
                 if self._issue_exists(repo, finding_id):
+                    logger.info(f"Skipping duplicate issue: {finding_id}")
                     continue
-                
+
                 # Create issue
                 issue_body = self._format_issue(result, tool_name, finding_id)
                 title = self._generate_title(result)
                 labels = self.SEVERITY_LABELS.get(severity, ["security"])
-                
+
                 try:
-                    issue = repo.create_issue(
-                        title=title,
-                        body=issue_body,
-                        labels=labels
-                    )
+                    issue = self._create_issue_with_retry(repo, title, issue_body, labels)
                     created_issues.append(issue.html_url)
-                    print(f"✓ Created issue: {issue.html_url}")
+                    logger.info(f"✓ Created issue: {issue.html_url}")
                 except GithubException as e:
-                    print(f"✗ Failed to create issue: {e}")
-        
+                    logger.error(f"✗ Failed to create issue for {finding_id}: {e}")
+                    # Continue processing other findings instead of failing completely
+
+        logger.info(f"Completed: Created {len(created_issues)} issue(s)")
         return created_issues
-    
+
     def _get_severity(self, result: dict[str, Any]) -> str:
         """Extract severity from SARIF result."""
         level = result.get("level", "warning")
-        severity_map = {
-            "error": "high",
-            "warning": "medium",
-            "note": "low"
-        }
-        
+        severity_map = {"error": "high", "warning": "medium", "note": "low"}
+
         # Check if rule metadata has severity
         rule_severity = result.get("properties", {}).get("security-severity")
         if rule_severity:
@@ -118,14 +204,14 @@ class IssueCreator:
                 return "medium"
             else:
                 return "low"
-        
+
         return severity_map.get(level, "medium")
-    
+
     def _meets_threshold(self, severity: str, threshold: str) -> bool:
         """Check if severity meets threshold."""
         hierarchy = ["low", "medium", "high", "critical"]
         return hierarchy.index(severity) >= hierarchy.index(threshold)
-    
+
     def _generate_finding_id(self, result: dict[str, Any]) -> str:
         """Generate unique ID for finding."""
         rule_id = result.get("ruleId", "unknown")
@@ -133,77 +219,151 @@ class IssueCreator:
         uri = location.get("physicalLocation", {}).get("artifactLocation", {}).get("uri", "")
         region = location.get("physicalLocation", {}).get("region", {})
         line = region.get("startLine", 0)
-        
+
         return f"{rule_id}_{uri}_{line}".replace("/", "_")
-    
+
     def _issue_exists(self, repo, finding_id: str) -> bool:
         """Check if issue already exists for this finding."""
         query = f"repo:{repo.full_name} is:issue {finding_id} in:body"
         results = self.gh.search_issues(query)
         return results.totalCount > 0
-    
+
     def _generate_title(self, result: dict[str, Any]) -> str:
         """Generate issue title."""
         rule_id = result.get("ruleId", "Security Issue")
         message = result.get("message", {}).get("text", "")
         return f"[Security] {rule_id}: {message[:80]}"
-    
+
     def _format_issue(self, result: dict[str, Any], tool_name: str, finding_id: str) -> str:
         """Format issue body from SARIF result."""
-        from datetime import datetime
-        
+        from datetime import datetime, timezone
+
+        file_path = self._get_file_path(result)
+        language = self._detect_language(file_path)
+
         return self.ISSUE_TEMPLATE.format(
             severity=self._get_severity(result),
             tool=tool_name,
             cwe=result.get("properties", {}).get("tags", ["N/A"])[0],
             owasp="N/A",  # Extract if available
             description=result.get("message", {}).get("text", "No description"),
-            file_path=self._get_file_path(result),
+            file_path=file_path,
             start_line=self._get_start_line(result),
             end_line=self._get_end_line(result),
-            language="python",  # Detect from file extension
+            language=language,
             code_snippet=self._get_code_snippet(result),
             remediation=result.get("message", {}).get("markdown", "See documentation"),
             references=self._get_references(result),
             finding_id=finding_id,
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat(),
         )
-    
+
     def _get_file_path(self, result: dict[str, Any]) -> str:
         location = result.get("locations", [{}])[0]
-        return location.get("physicalLocation", {}).get("artifactLocation", {}).get("uri", "unknown")
-    
+        return (
+            location.get("physicalLocation", {}).get("artifactLocation", {}).get("uri", "unknown")
+        )
+
+    def _detect_language(self, file_path: str) -> str:
+        """Detect programming language from file extension.
+
+        Args:
+            file_path: Path to the file
+
+        Returns:
+            Language identifier for syntax highlighting
+        """
+        extension_map = {
+            ".py": "python",
+            ".js": "javascript",
+            ".ts": "typescript",
+            ".jsx": "jsx",
+            ".tsx": "tsx",
+            ".java": "java",
+            ".go": "go",
+            ".rb": "ruby",
+            ".php": "php",
+            ".c": "c",
+            ".cpp": "cpp",
+            ".cs": "csharp",
+            ".rs": "rust",
+            ".swift": "swift",
+            ".kt": "kotlin",
+            ".scala": "scala",
+            ".sh": "bash",
+            ".yaml": "yaml",
+            ".yml": "yaml",
+            ".json": "json",
+            ".xml": "xml",
+            ".html": "html",
+            ".css": "css",
+            ".sql": "sql",
+            ".md": "markdown",
+        }
+
+        # Get file extension
+        ext = Path(file_path).suffix.lower()
+        return extension_map.get(ext, "text")
+
     def _get_start_line(self, result: dict[str, Any]) -> int:
         location = result.get("locations", [{}])[0]
         return location.get("physicalLocation", {}).get("region", {}).get("startLine", 0)
-    
+
     def _get_end_line(self, result: dict[str, Any]) -> int:
         location = result.get("locations", [{}])[0]
         return location.get("physicalLocation", {}).get("region", {}).get("endLine", 0)
-    
+
     def _get_code_snippet(self, result: dict[str, Any]) -> str:
         location = result.get("locations", [{}])[0]
-        return location.get("physicalLocation", {}).get("region", {}).get("snippet", {}).get("text", "")
-    
+        return (
+            location.get("physicalLocation", {})
+            .get("region", {})
+            .get("snippet", {})
+            .get("text", "")
+        )
+
     def _get_references(self, result: dict[str, Any]) -> str:
         refs = result.get("properties", {}).get("helpUri", "")
         if refs:
             return f"- {refs}"
         return "No references available"
 
+
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--repo", required=True, help="owner/repo")
-    parser.add_argument("--sarif", type=Path, required=True)
-    parser.add_argument("--severity", default="high", choices=["low", "medium", "high", "critical"])
+
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+
+    parser = argparse.ArgumentParser(
+        description="Create GitHub issues from SARIF security findings"
+    )
+    parser.add_argument("--repo", required=True, help="Repository in format 'owner/repo'")
+    parser.add_argument("--sarif", type=Path, required=True, help="Path to SARIF file")
+    parser.add_argument(
+        "--severity",
+        default="high",
+        choices=["low", "medium", "high", "critical"],
+        help="Minimum severity threshold (default: high)",
+    )
+    parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
     args = parser.parse_args()
-    
+
+    # Adjust log level if verbose
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+
     token = os.getenv("GITHUB_TOKEN")
     if not token:
+        logger.error("GITHUB_TOKEN environment variable not set")
         raise ValueError("GITHUB_TOKEN environment variable required")
-    
-    creator = IssueCreator(token)
-    issues = creator.create_issues_from_sarif(args.repo, args.sarif, args.severity)
-    
-    print(f"\n✓ Created {len(issues)} issues")
+
+    try:
+        creator = IssueCreator(token)
+        issues = creator.create_issues_from_sarif(args.repo, args.sarif, args.severity)
+        logger.info(f"✓ Successfully created {len(issues)} issue(s)")
+    except Exception as e:
+        logger.error(f"Failed to create issues: {e}")
+        raise

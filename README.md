@@ -9,16 +9,14 @@
 
 [![Daily Security Scan](https://github.com/cboyd0319/security-central/actions/workflows/daily-security-scan.yml/badge.svg)](https://github.com/cboyd0319/security-central/actions/workflows/daily-security-scan.yml)
 [![Weekly Audit](https://github.com/cboyd0319/security-central/actions/workflows/weekly-audit.yml/badge.svg)](https://github.com/cboyd0319/security-central/actions/workflows/weekly-audit.yml)
-[![CodeQL](https://github.com/cboyd0319/security-central/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/cboyd0319/security-central/actions/workflows/codeql-analysis.yml)
-[![OSSF Scorecard](https://github.com/cboyd0319/security-central/actions/workflows/scorecard.yml/badge.svg)](https://github.com/cboyd0319/security-central/actions/workflows/scorecard.yml)
-[![Test & Coverage](https://github.com/cboyd0319/security-central/actions/workflows/test.yml/badge.svg)](https://github.com/cboyd0319/security-central/actions/workflows/test.yml)
-[![codecov](https://codecov.io/gh/cboyd0319/security-central/branch/main/graph/badge.svg)](https://codecov.io/gh/cboyd0319/security-central)
+[![Quality Gates](https://github.com/cboyd0319/security-central/actions/workflows/quality-gates.yml/badge.svg)](https://github.com/cboyd0319/security-central/actions/workflows/quality-gates.yml)
+[![Test Coverage](https://img.shields.io/badge/coverage-79%25-yellow)](https://github.com/cboyd0319/security-central/actions/workflows/quality-gates.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 [Quickstart](#-quickstart) •
 [Features](#-features) •
-[Workflows](#-workflows) •
-[Configuration](#-configuration)
+[Documentation](docs/README.md) •
+[Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -538,6 +536,30 @@ Learn more: https://choosealicense.com/licenses/mit/
 - Initial setup: **30 minutes**
 - Weekly maintenance: **15 minutes** (reviewing auto-PRs)
 - **On vacation: 0 minutes** ☀️
+
+---
+
+## 📚 Documentation
+
+### For Users
+
+- **[Quickstart Guide](docs/QUICKSTART.md)** - Get up and running in 5 minutes
+- **[Setup Guide](docs/SETUP.md)** - Detailed setup and configuration
+- **[Runbook](docs/RUNBOOK.md)** - Operational guide and troubleshooting
+- **[Secret Rotation](docs/SECRET_ROTATION.md)** - Token and secret management
+
+### For Developers
+
+- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to this project
+- **[Development Guide](docs/DEVELOPMENT.md)** - Development setup and best practices
+- **[Implementation Status](docs/IMPLEMENTATION_STATUS.md)** - Current project status
+- **[Master Plan](docs/MASTER_PLAN.md)** - Long-term roadmap and vision
+
+### Quick Links
+
+- **[Documentation Index](docs/README.md)** - Complete documentation index
+- **[GitHub Actions](.github/workflows/)** - View workflow definitions
+- **[Test Suite](tests/)** - Comprehensive test coverage
 
 ---
 

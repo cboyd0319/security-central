@@ -3,20 +3,23 @@
 Send weekly digest to Slack.
 """
 
-import json
 import argparse
+import json
 import os
+
 import requests
+
+from utils import safe_open
 
 
 def send_digest(report_file: str, slack_webhook: str):
     """Send weekly digest to Slack."""
-    
+
     if not slack_webhook:
         print("No Slack webhook provided, skipping notification")
         return
 
-    with open(report_file) as f:
+    with safe_open(report_file, allowed_base=False) as f:
         audit = json.load(f)
 
     # Create Slack message
@@ -25,44 +28,43 @@ def send_digest(report_file: str, slack_webhook: str):
         "blocks": [
             {
                 "type": "header",
-                "text": {
-                    "type": "plain_text",
-                    "text": "📊 Weekly Security Audit Digest"
-                }
+                "text": {"type": "plain_text", "text": "📊 Weekly Security Audit Digest"},
             },
             {
                 "type": "section",
                 "fields": [
                     {
                         "type": "mrkdwn",
-                        "text": f"*Repositories*\n{audit['summary']['total_repos']}"
+                        "text": f"*Repositories*\n{audit['summary']['total_repos']}",
                     },
                     {
                         "type": "mrkdwn",
-                        "text": f"*Dependencies*\n{audit['summary']['total_dependencies']}"
+                        "text": f"*Dependencies*\n{audit['summary']['total_dependencies']}",
                     },
                     {
                         "type": "mrkdwn",
-                        "text": f"*Security Issues*\n{audit['summary']['security_issues']}"
+                        "text": f"*Security Issues*\n{audit['summary']['security_issues']}",
                     },
                     {
                         "type": "mrkdwn",
-                        "text": f"*License Issues*\n{audit['summary']['license_issues']}"
-                    }
-                ]
-            }
-        ]
+                        "text": f"*License Issues*\n{audit['summary']['license_issues']}",
+                    },
+                ],
+            },
+        ],
     }
 
     # Add action items if there are issues
-    if audit['summary']['security_issues'] > 0 or audit['summary']['license_issues'] > 0:
-        message["blocks"].append({
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": "⚠️ *Action Required*\nReview the weekly audit report for details."
+    if audit["summary"]["security_issues"] > 0 or audit["summary"]["license_issues"] > 0:
+        message["blocks"].append(
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "⚠️ *Action Required*\nReview the weekly audit report for details.",
+                },
             }
-        })
+        )
 
     # Send to Slack
     try:
@@ -74,14 +76,14 @@ def send_digest(report_file: str, slack_webhook: str):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Send weekly digest to Slack')
-    parser.add_argument('--report', required=True, help='Audit report JSON file')
-    parser.add_argument('--slack-webhook', help='Slack webhook URL')
+    parser = argparse.ArgumentParser(description="Send weekly digest to Slack")
+    parser.add_argument("--report", required=True, help="Audit report JSON file")
+    parser.add_argument("--slack-webhook", help="Slack webhook URL")
     args = parser.parse_args()
 
-    webhook = args.slack_webhook or os.getenv('SLACK_WEBHOOK')
+    webhook = args.slack_webhook or os.getenv("SLACK_WEBHOOK")
     send_digest(args.report, webhook)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

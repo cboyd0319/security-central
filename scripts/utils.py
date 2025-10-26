@@ -4,11 +4,14 @@ Utility functions for security-central.
 Common operations used across multiple scripts.
 """
 
-from typing import List, Dict, Tuple, Optional, Callable, Any
 import hashlib
+import os
 import subprocess
-from functools import wraps
 import time
+from functools import wraps
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -49,14 +52,14 @@ def deduplicate_findings(findings: List[Dict]) -> Tuple[List[Dict], int]:
 
     # Scanner reliability ranking (higher = more reliable)
     scanner_priority = {
-        'pip-audit': 10,
-        'npm-audit': 9,
-        'osv-scanner': 8,
-        'safety': 7,
-        'bandit': 6,
-        'semgrep': 5,
-        'dependency-check': 4,
-        'PSScriptAnalyzer': 3,
+        "pip-audit": 10,
+        "npm-audit": 9,
+        "osv-scanner": 8,
+        "safety": 7,
+        "bandit": 6,
+        "semgrep": 5,
+        "dependency-check": 4,
+        "PSScriptAnalyzer": 3,
     }
 
     for finding in findings:
@@ -72,26 +75,26 @@ def deduplicate_findings(findings: List[Dict]) -> Tuple[List[Dict], int]:
             existing = seen[key]
 
             # Prefer data from more reliable scanner
-            current_priority = scanner_priority.get(finding.get('tool', ''), 0)
-            existing_priority = scanner_priority.get(existing.get('tool', ''), 0)
+            current_priority = scanner_priority.get(finding.get("tool", ""), 0)
+            existing_priority = scanner_priority.get(existing.get("tool", ""), 0)
 
             if current_priority > existing_priority:
                 # Replace with more reliable source
-                existing['tool'] = finding.get('tool')
-                existing['fixed_in'] = finding.get('fixed_in', existing.get('fixed_in'))
-                existing['advisory'] = finding.get('advisory', existing.get('advisory'))
+                existing["tool"] = finding.get("tool")
+                existing["fixed_in"] = finding.get("fixed_in", existing.get("fixed_in"))
+                existing["advisory"] = finding.get("advisory", existing.get("advisory"))
 
             # Merge fixed_in versions from both scanners
-            existing_fixed = set(existing.get('fixed_in', []) or [])
-            new_fixed = set(finding.get('fixed_in', []) or [])
+            existing_fixed = set(existing.get("fixed_in", []) or [])
+            new_fixed = set(finding.get("fixed_in", []) or [])
             if existing_fixed or new_fixed:
-                existing['fixed_in'] = sorted(list(existing_fixed | new_fixed))
+                existing["fixed_in"] = sorted(list(existing_fixed | new_fixed))
 
             # Track all scanners that found this
-            if 'detected_by' not in existing:
-                existing['detected_by'] = [existing.get('tool')]
-            if finding.get('tool') not in existing['detected_by']:
-                existing['detected_by'].append(finding.get('tool'))
+            if "detected_by" not in existing:
+                existing["detected_by"] = [existing.get("tool")]
+            if finding.get("tool") not in existing["detected_by"]:
+                existing["detected_by"].append(finding.get("tool"))
 
     return list(seen.values()), duplicates
 
@@ -112,14 +115,14 @@ def _create_finding_fingerprint(finding: Dict) -> str:
         SHA256 hash as fingerprint
     """
     components = [
-        finding.get('repo', ''),
-        finding.get('package', finding.get('rule', '')),  # package or rule name
-        finding.get('cve', finding.get('id', '')),  # CVE or other ID
-        finding.get('file', ''),  # File path for code quality issues
+        finding.get("repo", ""),
+        finding.get("package", finding.get("rule", "")),  # package or rule name
+        finding.get("cve", finding.get("id", "")),  # CVE or other ID
+        finding.get("file", ""),  # File path for code quality issues
     ]
 
     # Create stable fingerprint
-    fingerprint_str = '|'.join(str(c).lower() for c in components)
+    fingerprint_str = "|".join(str(c).lower() for c in components)
     return hashlib.sha256(fingerprint_str.encode()).hexdigest()
 
 
@@ -149,7 +152,9 @@ def rate_limit(calls_per_minute: int = 30):
                 time.sleep(left_to_wait)
             last_called[0] = time.time()
             return func(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
@@ -158,7 +163,7 @@ def safe_subprocess_run(
     timeout: int = 60,
     check: bool = True,
     capture_output: bool = True,
-    cwd: Optional[str] = None
+    cwd: Optional[str] = None,
 ) -> subprocess.CompletedProcess:
     """Safely run subprocess with proper error handling.
 
@@ -187,30 +192,19 @@ def safe_subprocess_run(
     """
     try:
         return subprocess.run(
-            cmd,
-            timeout=timeout,
-            check=check,
-            capture_output=capture_output,
-            cwd=cwd,
-            text=True
+            cmd, timeout=timeout, check=check, capture_output=capture_output, cwd=cwd, text=True
         )
     except subprocess.CalledProcessError as e:
         # Add context to error message
-        cmd_str = ' '.join(cmd)
-        error_msg = e.stderr if e.stderr else 'No error output'
+        cmd_str = " ".join(cmd)
+        error_msg = e.stderr if e.stderr else "No error output"
         raise subprocess.CalledProcessError(
-            e.returncode,
-            cmd,
-            output=e.stdout,
-            stderr=f"Command '{cmd_str}' failed: {error_msg}"
+            e.returncode, cmd, output=e.stdout, stderr=f"Command '{cmd_str}' failed: {error_msg}"
         )
     except subprocess.TimeoutExpired as e:
-        cmd_str = ' '.join(cmd)
+        cmd_str = " ".join(cmd)
         raise subprocess.TimeoutExpired(
-            cmd,
-            timeout,
-            output=e.stdout,
-            stderr=f"Command '{cmd_str}' timed out after {timeout}s"
+            cmd, timeout, output=e.stdout, stderr=f"Command '{cmd_str}' timed out after {timeout}s"
         )
 
 
@@ -232,20 +226,20 @@ def merge_findings_metadata(findings: List[Dict]) -> Dict:
     from collections import Counter
 
     metadata = {
-        'total_count': len(findings),
-        'by_severity': dict(Counter(f.get('severity', 'UNKNOWN') for f in findings)),
-        'by_type': dict(Counter(f.get('type', 'unknown') for f in findings)),
-        'by_repo': dict(Counter(f.get('repo', 'unknown') for f in findings)),
-        'scanners_used': list(set(f.get('tool', 'unknown') for f in findings)),
+        "total_count": len(findings),
+        "by_severity": dict(Counter(f.get("severity", "UNKNOWN") for f in findings)),
+        "by_type": dict(Counter(f.get("type", "unknown") for f in findings)),
+        "by_repo": dict(Counter(f.get("repo", "unknown") for f in findings)),
+        "scanners_used": list(set(f.get("tool", "unknown") for f in findings)),
     }
 
     # Most common CVEs
-    cves = [f.get('cve') for f in findings if f.get('cve') and f.get('cve') != 'N/A']
+    cves = [f.get("cve") for f in findings if f.get("cve") and f.get("cve") != "N/A"]
     if cves:
         cve_counts = Counter(cves)
-        metadata['most_common_cves'] = cve_counts.most_common(10)
+        metadata["most_common_cves"] = cve_counts.most_common(10)
     else:
-        metadata['most_common_cves'] = []
+        metadata["most_common_cves"] = []
 
     return metadata
 
@@ -253,7 +247,7 @@ def merge_findings_metadata(findings: List[Dict]) -> Dict:
 def create_session_with_retries(
     total_retries: int = 5,
     backoff_factor: float = 1.0,
-    status_forcelist: Optional[List[int]] = None
+    status_forcelist: Optional[List[int]] = None,
 ) -> requests.Session:
     """Create requests session with automatic retry logic.
 
@@ -284,7 +278,7 @@ def create_session_with_retries(
         total=total_retries,
         backoff_factor=backoff_factor,
         status_forcelist=status_forcelist,
-        allowed_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+        allowed_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
     )
 
     adapter = HTTPAdapter(max_retries=retry_strategy)
@@ -298,7 +292,7 @@ def retry_on_exception(
     max_attempts: int = 3,
     delay: float = 1.0,
     backoff: float = 2.0,
-    exceptions: Tuple = (Exception,)
+    exceptions: Tuple = (Exception,),
 ) -> Callable:
     """Decorator to retry function on specific exceptions.
 
@@ -316,6 +310,7 @@ def retry_on_exception(
         def fetch_data(url):
             return requests.get(url).json()
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs) -> Any:
@@ -340,6 +335,7 @@ def retry_on_exception(
             raise last_exception
 
         return wrapper
+
     return decorator
 
 
@@ -361,14 +357,234 @@ def validate_version_format(version: str) -> bool:
     if not version:
         return False
 
-    parts = version.strip().split('.')
+    parts = version.strip().split(".")
     if len(parts) < 2:  # At least major.minor
         return False
 
     try:
         # Try to parse first 3 parts as integers
         for i in range(min(3, len(parts))):
-            int(parts[i].split('-')[0].split('+')[0])  # Handle pre-release/build
+            int(parts[i].split("-")[0].split("+")[0])  # Handle pre-release/build
         return True
     except (ValueError, AttributeError):
         return False
+
+
+# Security Constants
+DEFAULT_ALLOWED_BASE_DIR = Path.cwd()
+MAX_PATH_LENGTH = 4096
+
+
+def safe_path_resolve(
+    filepath: Union[str, Path], allowed_base: Optional[Union[str, Path]] = None
+) -> Path:
+    """
+    Safely resolve a file path preventing directory traversal attacks.
+
+    This function validates that the resolved absolute path is within the allowed
+    base directory, preventing path traversal attacks like '../../../etc/passwd'.
+
+    Args:
+        filepath: Path to validate and resolve
+        allowed_base: Base directory that the path must be within.
+                     Defaults to current working directory.
+
+    Returns:
+        Resolved absolute Path object
+
+    Raises:
+        ValueError: If path is outside allowed base or contains traversal attempts
+        FileNotFoundError: If the resolved path doesn't exist
+
+    Example:
+        >>> safe_path_resolve("data/file.json", "/trusted/dir")
+        PosixPath('/trusted/dir/data/file.json')
+        >>> safe_path_resolve("../../../etc/passwd", "/trusted/dir")
+        Traceback (most recent call last):
+        ValueError: Path traversal attempt detected
+    """
+    # Convert to Path object
+    filepath = Path(filepath)
+
+    # Resolve to absolute path
+    try:
+        abs_path = filepath.resolve()
+    except (OSError, RuntimeError) as e:
+        raise ValueError(f"Failed to resolve path: {e}")
+
+    # Skip validation if explicitly disabled (allowed_base=False)
+    if allowed_base is False:
+        return abs_path
+
+    # Use default base if None
+    if allowed_base is None:
+        allowed_base = DEFAULT_ALLOWED_BASE_DIR
+
+    # Convert and resolve base directory
+    allowed_base = Path(allowed_base)
+    try:
+        abs_base = allowed_base.resolve()
+    except (OSError, RuntimeError) as e:
+        raise ValueError(f"Failed to resolve base path: {e}")
+
+    # Check path length
+    if len(str(abs_path)) > MAX_PATH_LENGTH:
+        raise ValueError(f"Path exceeds maximum length of {MAX_PATH_LENGTH}")
+
+    # Verify the path is within the allowed base
+    try:
+        abs_path.relative_to(abs_base)
+    except ValueError:
+        raise ValueError(
+            f"Path traversal attempt detected: '{filepath}' resolves to "
+            f"'{abs_path}' which is outside allowed base '{abs_base}'"
+        )
+
+    return abs_path
+
+
+def safe_open(
+    filepath: Union[str, Path],
+    mode: str = "r",
+    allowed_base: Optional[Union[str, Path]] = None,
+    **kwargs,
+):
+    """
+    Safely open a file with path traversal protection.
+
+    Validates the file path before opening to prevent directory traversal attacks.
+    All arguments except 'allowed_base' are passed directly to open().
+
+    Args:
+        filepath: Path to file to open
+        mode: File mode ('r', 'w', 'rb', etc.)
+        allowed_base: Base directory the file must be within
+        **kwargs: Additional arguments passed to open()
+
+    Returns:
+        File object from open()
+
+    Raises:
+        ValueError: If path validation fails
+        FileNotFoundError: If file doesn't exist (in read modes)
+
+    Example:
+        >>> with safe_open("data/file.json", "r", "/trusted/dir") as f:
+        ...     data = f.read()
+    """
+    validated_path = safe_path_resolve(filepath, allowed_base)
+
+    # For read modes, check file exists
+    if "r" in mode and not validated_path.exists():
+        raise FileNotFoundError(f"File not found: {validated_path}")
+
+    return open(validated_path, mode, **kwargs)
+
+
+def safe_read_json(
+    filepath: Union[str, Path],
+    allowed_base: Optional[Union[str, Path]] = None,
+) -> Dict:
+    """
+    Safely read and parse a JSON file with path traversal protection.
+
+    Args:
+        filepath: Path to JSON file
+        allowed_base: Base directory the file must be within
+
+    Returns:
+        Parsed JSON data as dictionary
+
+    Raises:
+        ValueError: If path validation fails or JSON is invalid
+        FileNotFoundError: If file doesn't exist
+
+    Example:
+        >>> data = safe_read_json("config.json", "/app/config")
+    """
+    import json
+
+    with safe_open(filepath, "r", allowed_base) as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON in {filepath}: {e}")
+
+
+def safe_write_json(
+    filepath: Union[str, Path],
+    data: Dict,
+    allowed_base: Optional[Union[str, Path]] = None,
+    indent: int = 2,
+) -> None:
+    """
+    Safely write data to a JSON file with path traversal protection.
+
+    Args:
+        filepath: Path to JSON file
+        data: Data to write (must be JSON serializable)
+        allowed_base: Base directory the file must be within
+        indent: JSON indentation level
+
+    Raises:
+        ValueError: If path validation fails or data isn't serializable
+
+    Example:
+        >>> safe_write_json("output.json", {"key": "value"}, "/app/data")
+    """
+    import json
+
+    with safe_open(filepath, "w", allowed_base) as f:
+        json.dump(data, f, indent=indent)
+
+
+def safe_read_file(
+    filepath: Union[str, Path],
+    allowed_base: Optional[Union[str, Path]] = None,
+    encoding: str = "utf-8",
+) -> str:
+    """
+    Safely read a text file with path traversal protection.
+
+    Args:
+        filepath: Path to text file
+        allowed_base: Base directory the file must be within
+        encoding: Text encoding (default: utf-8)
+
+    Returns:
+        File contents as string
+
+    Raises:
+        ValueError: If path validation fails
+        FileNotFoundError: If file doesn't exist
+
+    Example:
+        >>> content = safe_read_file("data.txt", "/trusted/dir")
+    """
+    with safe_open(filepath, "r", allowed_base, encoding=encoding) as f:
+        return f.read()
+
+
+def safe_write_file(
+    filepath: Union[str, Path],
+    content: str,
+    allowed_base: Optional[Union[str, Path]] = None,
+    encoding: str = "utf-8",
+) -> None:
+    """
+    Safely write content to a text file with path traversal protection.
+
+    Args:
+        filepath: Path to text file
+        content: Content to write
+        allowed_base: Base directory the file must be within
+        encoding: Text encoding (default: utf-8)
+
+    Raises:
+        ValueError: If path validation fails
+
+    Example:
+        >>> safe_write_file("output.txt", "Hello World", "/trusted/dir")
+    """
+    with safe_open(filepath, "w", allowed_base, encoding=encoding) as f:
+        f.write(content)

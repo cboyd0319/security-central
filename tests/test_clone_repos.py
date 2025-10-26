@@ -1,14 +1,15 @@
 """Tests for clone_repos.py"""
 
+import os
+import subprocess
+import sys
+from pathlib import Path
+from unittest.mock import MagicMock, call, patch
+
 import pytest
 import yaml
-import sys
-import os
-from pathlib import Path
-from unittest.mock import patch, MagicMock, call
-import subprocess
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from scripts.clone_repos import clone_repos
 
@@ -24,14 +25,8 @@ class TestCloneRepos:
 
         config = {
             "repositories": [
-                {
-                    "name": "test-repo-1",
-                    "url": "https://github.com/test/repo1.git"
-                },
-                {
-                    "name": "test-repo-2",
-                    "url": "https://github.com/test/repo2.git"
-                }
+                {"name": "test-repo-1", "url": "https://github.com/test/repo1.git"},
+                {"name": "test-repo-2", "url": "https://github.com/test/repo2.git"},
             ]
         }
 
@@ -40,7 +35,7 @@ class TestCloneRepos:
 
         return config_file
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_clone_new_repos(self, mock_run, temp_repos_config, tmp_path, capsys):
         """Test cloning new repositories."""
         mock_run.return_value = MagicMock(returncode=0, stderr="", stdout="")
@@ -54,13 +49,13 @@ class TestCloneRepos:
 
         # Verify git clone was called with correct arguments
         calls = mock_run.call_args_list
-        assert calls[0][0][0][0] == 'git'
-        assert calls[0][0][0][1] == 'clone'
+        assert calls[0][0][0][0] == "git"
+        assert calls[0][0][0][1] == "clone"
 
         captured = capsys.readouterr()
         assert "✅ 2/2 repositories ready" in captured.out
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_pull_existing_repos(self, mock_run, temp_repos_config, tmp_path, capsys):
         """Test pulling existing repositories."""
         mock_run.return_value = MagicMock(returncode=0, stderr="", stdout="")
@@ -78,19 +73,19 @@ class TestCloneRepos:
 
         # Verify git pull was called
         calls = mock_run.call_args_list
-        assert calls[0][0][0][0] == 'git'
-        assert calls[0][0][0][1] == 'pull'
+        assert calls[0][0][0][0] == "git"
+        assert calls[0][0][0][1] == "pull"
 
         captured = capsys.readouterr()
         assert "already cloned" in captured.out
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_clone_failure_handling(self, mock_run, temp_repos_config, tmp_path, capsys):
         """Test handling of clone failures."""
         # First clone succeeds, second fails
         mock_run.side_effect = [
             MagicMock(returncode=0, stderr="", stdout=""),
-            MagicMock(returncode=1, stderr="fatal: repository not found", stdout="")
+            MagicMock(returncode=1, stderr="fatal: repository not found", stdout=""),
         ]
 
         repos_dir = tmp_path / "repos"
@@ -101,10 +96,10 @@ class TestCloneRepos:
         assert "✅ 1/2 repositories ready" in captured.out
         assert "⚠️  Failed to clone: test-repo-2" in captured.out
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_timeout_handling(self, mock_run, temp_repos_config, tmp_path, capsys):
         """Test handling of subprocess timeout."""
-        mock_run.side_effect = subprocess.TimeoutExpired('git', 120)
+        mock_run.side_effect = subprocess.TimeoutExpired("git", 120)
 
         repos_dir = tmp_path / "repos"
 
@@ -114,7 +109,7 @@ class TestCloneRepos:
         assert "⚠️  Error with test-repo-1" in captured.out
         assert "✅ 0/2 repositories ready" in captured.out
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_creates_repos_directory(self, mock_run, temp_repos_config, tmp_path):
         """Test that repos directory is created if it doesn't exist."""
         mock_run.return_value = MagicMock(returncode=0, stderr="", stdout="")

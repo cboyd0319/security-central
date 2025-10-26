@@ -5,25 +5,26 @@ Comprehensive tests for scripts/utils.py
 Tests all utility functions with edge cases, error handling, and integration scenarios.
 """
 
-import pytest
 import subprocess
-import time
-import requests
-from unittest.mock import Mock, patch, MagicMock, call
-from typing import List, Dict
-
 import sys
+import time
 from pathlib import Path
+from typing import Dict, List
+from unittest.mock import MagicMock, Mock, call, patch
+
+import pytest
+import requests
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 from utils import (
-    deduplicate_findings,
     _create_finding_fingerprint,
-    rate_limit,
-    safe_subprocess_run,
-    merge_findings_metadata,
     create_session_with_retries,
+    deduplicate_findings,
+    merge_findings_metadata,
+    rate_limit,
     retry_on_exception,
+    safe_subprocess_run,
     validate_version_format,
 )
 
@@ -35,18 +36,18 @@ class TestDeduplicateFindings:
         """Test with no duplicate findings."""
         findings = [
             {
-                'package': 'requests',
-                'cve': 'CVE-2024-1',
-                'repo': 'app1',
-                'tool': 'pip-audit',
-                'severity': 'HIGH'
+                "package": "requests",
+                "cve": "CVE-2024-1",
+                "repo": "app1",
+                "tool": "pip-audit",
+                "severity": "HIGH",
             },
             {
-                'package': 'django',
-                'cve': 'CVE-2024-2',
-                'repo': 'app1',
-                'tool': 'pip-audit',
-                'severity': 'CRITICAL'
+                "package": "django",
+                "cve": "CVE-2024-2",
+                "repo": "app1",
+                "tool": "pip-audit",
+                "severity": "CRITICAL",
             },
         ]
         unique, dupes = deduplicate_findings(findings)
@@ -57,75 +58,75 @@ class TestDeduplicateFindings:
         """Test with exact duplicate findings."""
         findings = [
             {
-                'package': 'requests',
-                'cve': 'CVE-2024-1',
-                'repo': 'app1',
-                'tool': 'pip-audit',
-                'severity': 'HIGH',
-                'fixed_in': ['2.28.0']
+                "package": "requests",
+                "cve": "CVE-2024-1",
+                "repo": "app1",
+                "tool": "pip-audit",
+                "severity": "HIGH",
+                "fixed_in": ["2.28.0"],
             },
             {
-                'package': 'requests',
-                'cve': 'CVE-2024-1',
-                'repo': 'app1',
-                'tool': 'safety',
-                'severity': 'HIGH',
-                'fixed_in': ['2.28.0']
+                "package": "requests",
+                "cve": "CVE-2024-1",
+                "repo": "app1",
+                "tool": "safety",
+                "severity": "HIGH",
+                "fixed_in": ["2.28.0"],
             },
         ]
         unique, dupes = deduplicate_findings(findings)
         assert len(unique) == 1
         assert dupes == 1
-        assert 'detected_by' in unique[0]
-        assert len(unique[0]['detected_by']) == 2
+        assert "detected_by" in unique[0]
+        assert len(unique[0]["detected_by"]) == 2
 
     def test_scanner_priority(self):
         """Test that higher priority scanner data is preferred."""
         findings = [
             {
-                'package': 'requests',
-                'cve': 'CVE-2024-1',
-                'repo': 'app1',
-                'tool': 'safety',  # Lower priority (7)
-                'advisory': 'Old advisory',
-                'fixed_in': ['2.27.0']
+                "package": "requests",
+                "cve": "CVE-2024-1",
+                "repo": "app1",
+                "tool": "safety",  # Lower priority (7)
+                "advisory": "Old advisory",
+                "fixed_in": ["2.27.0"],
             },
             {
-                'package': 'requests',
-                'cve': 'CVE-2024-1',
-                'repo': 'app1',
-                'tool': 'pip-audit',  # Higher priority (10)
-                'advisory': 'Better advisory',
-                'fixed_in': ['2.28.0']
+                "package": "requests",
+                "cve": "CVE-2024-1",
+                "repo": "app1",
+                "tool": "pip-audit",  # Higher priority (10)
+                "advisory": "Better advisory",
+                "fixed_in": ["2.28.0"],
             },
         ]
         unique, dupes = deduplicate_findings(findings)
         assert len(unique) == 1
         assert dupes == 1
-        assert unique[0]['tool'] == 'pip-audit'
-        assert unique[0]['advisory'] == 'Better advisory'
+        assert unique[0]["tool"] == "pip-audit"
+        assert unique[0]["advisory"] == "Better advisory"
 
     def test_merge_fixed_versions(self):
         """Test that fixed_in versions are merged from multiple scanners."""
         findings = [
             {
-                'package': 'requests',
-                'cve': 'CVE-2024-1',
-                'repo': 'app1',
-                'tool': 'safety',
-                'fixed_in': ['2.27.0', '2.28.0']
+                "package": "requests",
+                "cve": "CVE-2024-1",
+                "repo": "app1",
+                "tool": "safety",
+                "fixed_in": ["2.27.0", "2.28.0"],
             },
             {
-                'package': 'requests',
-                'cve': 'CVE-2024-1',
-                'repo': 'app1',
-                'tool': 'pip-audit',
-                'fixed_in': ['2.28.0', '2.29.0']
+                "package": "requests",
+                "cve": "CVE-2024-1",
+                "repo": "app1",
+                "tool": "pip-audit",
+                "fixed_in": ["2.28.0", "2.29.0"],
             },
         ]
         unique, dupes = deduplicate_findings(findings)
         assert len(unique) == 1
-        assert sorted(unique[0]['fixed_in']) == ['2.27.0', '2.28.0', '2.29.0']
+        assert sorted(unique[0]["fixed_in"]) == ["2.27.0", "2.28.0", "2.29.0"]
 
     def test_empty_findings(self):
         """Test with empty findings list."""
@@ -136,18 +137,8 @@ class TestDeduplicateFindings:
     def test_different_repos_same_vuln(self):
         """Test that same vuln in different repos is not deduplicated."""
         findings = [
-            {
-                'package': 'requests',
-                'cve': 'CVE-2024-1',
-                'repo': 'app1',
-                'tool': 'pip-audit'
-            },
-            {
-                'package': 'requests',
-                'cve': 'CVE-2024-1',
-                'repo': 'app2',
-                'tool': 'pip-audit'
-            },
+            {"package": "requests", "cve": "CVE-2024-1", "repo": "app1", "tool": "pip-audit"},
+            {"package": "requests", "cve": "CVE-2024-1", "repo": "app2", "tool": "pip-audit"},
         ]
         unique, dupes = deduplicate_findings(findings)
         assert len(unique) == 2
@@ -157,44 +148,34 @@ class TestDeduplicateFindings:
         """Test handling of None values in fixed_in."""
         findings = [
             {
-                'package': 'requests',
-                'cve': 'CVE-2024-1',
-                'repo': 'app1',
-                'tool': 'safety',
-                'fixed_in': None
+                "package": "requests",
+                "cve": "CVE-2024-1",
+                "repo": "app1",
+                "tool": "safety",
+                "fixed_in": None,
             },
             {
-                'package': 'requests',
-                'cve': 'CVE-2024-1',
-                'repo': 'app1',
-                'tool': 'pip-audit',
-                'fixed_in': ['2.28.0']
+                "package": "requests",
+                "cve": "CVE-2024-1",
+                "repo": "app1",
+                "tool": "pip-audit",
+                "fixed_in": ["2.28.0"],
             },
         ]
         unique, dupes = deduplicate_findings(findings)
         assert len(unique) == 1
-        assert unique[0]['fixed_in'] == ['2.28.0']
+        assert unique[0]["fixed_in"] == ["2.28.0"]
 
     def test_unknown_scanner(self):
         """Test handling of scanners not in priority list."""
         findings = [
-            {
-                'package': 'requests',
-                'cve': 'CVE-2024-1',
-                'repo': 'app1',
-                'tool': 'unknown-scanner'
-            },
-            {
-                'package': 'requests',
-                'cve': 'CVE-2024-1',
-                'repo': 'app1',
-                'tool': 'pip-audit'
-            },
+            {"package": "requests", "cve": "CVE-2024-1", "repo": "app1", "tool": "unknown-scanner"},
+            {"package": "requests", "cve": "CVE-2024-1", "repo": "app1", "tool": "pip-audit"},
         ]
         unique, dupes = deduplicate_findings(findings)
         assert len(unique) == 1
         # pip-audit should be preferred (priority 10 vs 0)
-        assert unique[0]['tool'] == 'pip-audit'
+        assert unique[0]["tool"] == "pip-audit"
 
 
 class TestCreateFindingFingerprint:
@@ -202,30 +183,26 @@ class TestCreateFindingFingerprint:
 
     def test_basic_fingerprint(self):
         """Test basic fingerprint creation."""
-        finding = {
-            'package': 'requests',
-            'cve': 'CVE-2024-1',
-            'repo': 'app1'
-        }
+        finding = {"package": "requests", "cve": "CVE-2024-1", "repo": "app1"}
         fingerprint = _create_finding_fingerprint(finding)
         assert isinstance(fingerprint, str)
         assert len(fingerprint) > 0
 
     def test_same_finding_same_fingerprint(self):
         """Test that identical findings produce same fingerprint."""
-        finding1 = {'package': 'requests', 'cve': 'CVE-2024-1', 'repo': 'app1'}
-        finding2 = {'package': 'requests', 'cve': 'CVE-2024-1', 'repo': 'app1'}
+        finding1 = {"package": "requests", "cve": "CVE-2024-1", "repo": "app1"}
+        finding2 = {"package": "requests", "cve": "CVE-2024-1", "repo": "app1"}
         assert _create_finding_fingerprint(finding1) == _create_finding_fingerprint(finding2)
 
     def test_different_finding_different_fingerprint(self):
         """Test that different findings produce different fingerprints."""
-        finding1 = {'package': 'requests', 'cve': 'CVE-2024-1', 'repo': 'app1'}
-        finding2 = {'package': 'django', 'cve': 'CVE-2024-1', 'repo': 'app1'}
+        finding1 = {"package": "requests", "cve": "CVE-2024-1", "repo": "app1"}
+        finding2 = {"package": "django", "cve": "CVE-2024-1", "repo": "app1"}
         assert _create_finding_fingerprint(finding1) != _create_finding_fingerprint(finding2)
 
     def test_missing_fields(self):
         """Test fingerprint creation with missing fields."""
-        finding = {'package': 'requests'}
+        finding = {"package": "requests"}
         fingerprint = _create_finding_fingerprint(finding)
         assert isinstance(fingerprint, str)
 
@@ -235,8 +212,10 @@ class TestRateLimit:
 
     def test_rate_limit_basic(self):
         """Test basic rate limiting."""
+
         @rate_limit(calls_per_minute=120)  # 2 calls per second
         def test_func():
+            # TODO: Add docstring
             return "success"
 
         # Should complete quickly
@@ -252,8 +231,10 @@ class TestRateLimit:
 
     def test_rate_limit_with_args(self):
         """Test rate limiting with function arguments."""
+
         @rate_limit(calls_per_minute=120)
         def test_func(x, y):
+            # TODO: Add docstring
             return x + y
 
         result = test_func(2, 3)
@@ -261,6 +242,7 @@ class TestRateLimit:
 
     def test_rate_limit_preserves_function_metadata(self):
         """Test that rate_limit preserves function name and docstring."""
+
         @rate_limit(calls_per_minute=60)
         def my_function():
             """My docstring."""
@@ -275,47 +257,45 @@ class TestSafeSubprocessRun:
 
     def test_successful_command(self):
         """Test successful command execution."""
-        result = safe_subprocess_run(['echo', 'hello'], timeout=5)
+        result = safe_subprocess_run(["echo", "hello"], timeout=5)
         assert result is not None
         assert result.returncode == 0
-        assert 'hello' in result.stdout
+        assert "hello" in result.stdout
 
     def test_command_timeout(self):
         """Test command timeout handling."""
-        result = safe_subprocess_run(['sleep', '10'], timeout=0.5)
+        result = safe_subprocess_run(["sleep", "10"], timeout=0.5)
         assert result is None
 
     def test_command_not_found(self):
         """Test handling of non-existent command."""
-        result = safe_subprocess_run(['nonexistent-command-xyz'], timeout=5)
+        result = safe_subprocess_run(["nonexistent-command-xyz"], timeout=5)
         assert result is None
 
     def test_check_true_on_failure(self):
         """Test check=True raises exception on failure."""
         with pytest.raises(subprocess.CalledProcessError):
-            safe_subprocess_run(['false'], check=True, timeout=5)
+            safe_subprocess_run(["false"], check=True, timeout=5)
 
     def test_capture_output_default(self):
         """Test that output is captured by default."""
-        result = safe_subprocess_run(['echo', 'test'], timeout=5)
+        result = safe_subprocess_run(["echo", "test"], timeout=5)
         assert result is not None
-        assert 'test' in result.stdout
+        assert "test" in result.stdout
 
     def test_with_cwd(self):
         """Test command execution with working directory."""
-        result = safe_subprocess_run(['pwd'], timeout=5, cwd='/tmp')
+        result = safe_subprocess_run(["pwd"], timeout=5, cwd="/tmp")
         assert result is not None
-        assert '/tmp' in result.stdout
+        assert "/tmp" in result.stdout
 
     def test_with_env(self):
         """Test command execution with custom environment."""
         result = safe_subprocess_run(
-            ['sh', '-c', 'echo $MY_VAR'],
-            timeout=5,
-            env={'MY_VAR': 'test_value'}
+            ["sh", "-c", "echo $MY_VAR"], timeout=5, env={"MY_VAR": "test_value"}
         )
         assert result is not None
-        assert 'test_value' in result.stdout
+        assert "test_value" in result.stdout
 
 
 class TestMergeFindingsMetadata:
@@ -324,46 +304,46 @@ class TestMergeFindingsMetadata:
     def test_empty_findings(self):
         """Test with empty findings list."""
         metadata = merge_findings_metadata([])
-        assert metadata['total_findings'] == 0
-        assert metadata['by_severity'] == {}
-        assert metadata['by_tool'] == {}
+        assert metadata["total_findings"] == 0
+        assert metadata["by_severity"] == {}
+        assert metadata["by_tool"] == {}
 
     def test_basic_metadata(self):
         """Test basic metadata creation."""
         findings = [
-            {'severity': 'HIGH', 'tool': 'pip-audit'},
-            {'severity': 'CRITICAL', 'tool': 'pip-audit'},
-            {'severity': 'HIGH', 'tool': 'safety'},
+            {"severity": "HIGH", "tool": "pip-audit"},
+            {"severity": "CRITICAL", "tool": "pip-audit"},
+            {"severity": "HIGH", "tool": "safety"},
         ]
         metadata = merge_findings_metadata(findings)
-        assert metadata['total_findings'] == 3
-        assert metadata['by_severity']['HIGH'] == 2
-        assert metadata['by_severity']['CRITICAL'] == 1
-        assert metadata['by_tool']['pip-audit'] == 2
-        assert metadata['by_tool']['safety'] == 1
+        assert metadata["total_findings"] == 3
+        assert metadata["by_severity"]["HIGH"] == 2
+        assert metadata["by_severity"]["CRITICAL"] == 1
+        assert metadata["by_tool"]["pip-audit"] == 2
+        assert metadata["by_tool"]["safety"] == 1
 
     def test_missing_fields(self):
         """Test handling of findings with missing fields."""
         findings = [
-            {'severity': 'HIGH'},
-            {'tool': 'pip-audit'},
+            {"severity": "HIGH"},
+            {"tool": "pip-audit"},
             {},
         ]
         metadata = merge_findings_metadata(findings)
-        assert metadata['total_findings'] == 3
-        assert 'HIGH' in metadata['by_severity']
-        assert 'pip-audit' in metadata['by_tool']
+        assert metadata["total_findings"] == 3
+        assert "HIGH" in metadata["by_severity"]
+        assert "pip-audit" in metadata["by_tool"]
 
     def test_unique_packages_and_cves(self):
         """Test unique package and CVE counting."""
         findings = [
-            {'package': 'requests', 'cve': 'CVE-2024-1'},
-            {'package': 'requests', 'cve': 'CVE-2024-2'},
-            {'package': 'django', 'cve': 'CVE-2024-1'},
+            {"package": "requests", "cve": "CVE-2024-1"},
+            {"package": "requests", "cve": "CVE-2024-2"},
+            {"package": "django", "cve": "CVE-2024-1"},
         ]
         metadata = merge_findings_metadata(findings)
-        assert metadata['unique_packages'] == 2  # requests, django
-        assert metadata['unique_cves'] == 2  # CVE-2024-1, CVE-2024-2
+        assert metadata["unique_packages"] == 2  # requests, django
+        assert metadata["unique_cves"] == 2  # CVE-2024-1, CVE-2024-2
 
 
 class TestCreateSessionWithRetries:
@@ -376,20 +356,17 @@ class TestCreateSessionWithRetries:
 
     def test_custom_retries(self):
         """Test with custom retry configuration."""
-        session = create_session_with_retries(
-            total_retries=5,
-            backoff_factor=0.5
-        )
+        session = create_session_with_retries(total_retries=5, backoff_factor=0.5)
         assert isinstance(session, requests.Session)
         # Check adapter is mounted
-        assert 'https://' in session.adapters
-        assert 'http://' in session.adapters
+        assert "https://" in session.adapters
+        assert "http://" in session.adapters
 
     def test_session_has_adapters(self):
         """Test that session has retry adapters."""
         session = create_session_with_retries()
         # Verify adapters are configured
-        https_adapter = session.get_adapter('https://example.com')
+        https_adapter = session.get_adapter("https://example.com")
         assert isinstance(https_adapter, HTTPAdapter)
 
 
@@ -402,6 +379,7 @@ class TestRetryOnException:
 
         @retry_on_exception(max_retries=3, delay=0.1)
         def successful_func():
+            # TODO: Add docstring
             call_count[0] += 1
             return "success"
 
@@ -415,6 +393,7 @@ class TestRetryOnException:
 
         @retry_on_exception(max_retries=3, delay=0.1)
         def failing_func():
+            # TODO: Add docstring
             call_count[0] += 1
             if call_count[0] < 3:
                 raise ValueError("Temporary error")
@@ -430,6 +409,7 @@ class TestRetryOnException:
 
         @retry_on_exception(max_retries=2, delay=0.1)
         def always_failing_func():
+            # TODO: Add docstring
             call_count[0] += 1
             raise ValueError("Permanent error")
 
@@ -443,6 +423,7 @@ class TestRetryOnException:
 
         @retry_on_exception(max_retries=2, delay=0.1)
         def func_with_args(x, y):
+            # TODO: Add docstring
             call_count[0] += 1
             if call_count[0] < 2:
                 raise ValueError("Retry")
@@ -458,6 +439,7 @@ class TestRetryOnException:
 
         @retry_on_exception(max_retries=3, delay=0.1, exceptions=(ValueError,))
         def func_specific_exception():
+            # TODO: Add docstring
             call_count[0] += 1
             if call_count[0] == 1:
                 raise ValueError("Retry this")

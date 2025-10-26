@@ -4,10 +4,13 @@ Pre-vacation hardening script - Run this before going on vacation!
 """
 
 import subprocess
-import yaml
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+import yaml
+
+from utils import safe_open
 
 
 def print_header(text: str):
@@ -35,24 +38,24 @@ def main():
     print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
 
     # Load config
-    with open('config/repos.yml') as f:
+    with safe_open("config/repos.yml", allowed_base=False) as f:
         config = yaml.safe_load(f)
 
-    repos = config['repositories']
+    repos = config["repositories"]
     total_checks = 0
     passed_checks = 0
 
     # 1. Clone/Update all repos
     print_header("Step 1: Update All Repositories")
-    if run_command(['python', 'scripts/clone_repos.py'], "Clone/update all repos"):
+    if run_command(["python", "scripts/clone_repos.py"], "Clone/update all repos"):
         passed_checks += 1
     total_checks += 1
 
     # 2. Run immediate security scan
     print_header("Step 2: Security Scan (Pre-Departure)")
     if run_command(
-        ['python', 'scripts/scan_all_repos.py', '--output', 'pre-vacation-scan.json'],
-        "Scan for vulnerabilities"
+        ["python", "scripts/scan_all_repos.py", "--output", "pre-vacation-scan.json"],
+        "Scan for vulnerabilities",
     ):
         passed_checks += 1
     total_checks += 1
@@ -60,11 +63,12 @@ def main():
     # Check if any CRITICAL issues
     try:
         import json
-        with open('pre-vacation-scan.json') as f:
+
+        with safe_open("pre-vacation-scan.json", allowed_base=False) as f:
             scan_results = json.load(f)
 
-        critical_count = scan_results.get('summary', {}).get('critical_count', 0)
-        high_count = scan_results.get('summary', {}).get('high_count', 0)
+        critical_count = scan_results.get("summary", {}).get("critical_count", 0)
+        high_count = scan_results.get("summary", {}).get("high_count", 0)
 
         if critical_count > 0:
             print(f"\n  ⚠️  WARNING: {critical_count} CRITICAL issues found!")
@@ -83,10 +87,10 @@ def main():
     # 3. Enable auto-merge on all repos
     print_header("Step 3: Enable Auto-Merge")
     for repo in repos:
-        repo_name = repo['name']
+        repo_name = repo["name"]
         if run_command(
-            ['gh', 'repo', 'edit', f"cboyd0319/{repo_name}", '--enable-auto-merge'],
-            f"Enable auto-merge for {repo_name}"
+            ["gh", "repo", "edit", f"cboyd0319/{repo_name}", "--enable-auto-merge"],
+            f"Enable auto-merge for {repo_name}",
         ):
             passed_checks += 1
         total_checks += 1
@@ -94,12 +98,9 @@ def main():
     # 4. Test Slack notifications
     print_header("Step 4: Test Alert Systems")
 
-    slack_webhook = subprocess.run(
-        ['gh', 'secret', 'list'],
-        capture_output=True, text=True
-    ).stdout
+    slack_webhook = subprocess.run(["gh", "secret", "list"], capture_output=True, text=True).stdout
 
-    if 'SLACK_SECURITY_WEBHOOK' in slack_webhook:
+    if "SLACK_SECURITY_WEBHOOK" in slack_webhook:
         print("  ✅ Slack webhook configured")
         passed_checks += 1
     else:
@@ -109,16 +110,13 @@ def main():
 
     # 5. Verify GitHub token
     print_header("Step 5: Verify GitHub Access")
-    if run_command(['gh', 'auth', 'status'], "Check GitHub authentication"):
+    if run_command(["gh", "auth", "status"], "Check GitHub authentication"):
         passed_checks += 1
     total_checks += 1
 
     # 6. Check workflow status
     print_header("Step 6: Verify Workflows")
-    if run_command(
-        ['gh', 'workflow', 'list'],
-        "List workflows"
-    ):
+    if run_command(["gh", "workflow", "list"], "List workflows"):
         print("\n  Verify these workflows are enabled:")
         print("    - daily-security-scan.yml")
         print("    - emergency-response.yml")
@@ -155,5 +153,5 @@ def main():
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

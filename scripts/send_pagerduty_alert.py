@@ -3,18 +3,19 @@
 Send PagerDuty alerts for critical security issues.
 """
 
-import os
-import requests
 import argparse
+import os
 from datetime import datetime, timezone
 from typing import Optional
+
+import requests
 
 
 def send_alert(
     severity: str,
     cve: Optional[str] = None,
     count: Optional[int] = None,
-    message: Optional[str] = None
+    message: Optional[str] = None,
 ) -> None:
     """Send PagerDuty alert for security issue.
 
@@ -24,7 +25,7 @@ def send_alert(
         count: Optional count of vulnerabilities
         message: Optional custom message (auto-generated if not provided)
     """
-    routing_key: Optional[str] = os.environ.get('PAGERDUTY_KEY')
+    routing_key: Optional[str] = os.environ.get("PAGERDUTY_KEY")
 
     if not routing_key:
         print("PAGERDUTY_KEY not set, skipping alert")
@@ -46,16 +47,12 @@ def send_alert(
             "severity": severity.lower(),
             "source": "security-central",
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "custom_details": {
-                "cve": cve or "N/A",
-                "count": count or 0
-            }
-        }
+            "custom_details": {"cve": cve or "N/A", "count": count or 0},
+        },
     }
 
     response: requests.Response = requests.post(
-        'https://events.pagerduty.com/v2/enqueue',
-        json=payload
+        "https://events.pagerduty.com/v2/enqueue", json=payload
     )
 
     if response.status_code == 202:
@@ -66,17 +63,17 @@ def send_alert(
 
 def main() -> None:
     """Main entry point for PagerDuty alerting CLI."""
-    parser: argparse.ArgumentParser = argparse.ArgumentParser(
-        description='Send PagerDuty alert'
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(description="Send PagerDuty alert")
+    parser.add_argument(
+        "--severity", required=True, choices=["critical", "error", "warning", "info"]
     )
-    parser.add_argument('--severity', required=True, choices=['critical', 'error', 'warning', 'info'])
-    parser.add_argument('--cve', help='CVE ID')
-    parser.add_argument('--count', type=int, help='Number of issues')
-    parser.add_argument('--message', help='Custom message')
+    parser.add_argument("--cve", help="CVE ID")
+    parser.add_argument("--count", type=int, help="Number of issues")
+    parser.add_argument("--message", help="Custom message")
     args: argparse.Namespace = parser.parse_args()
 
     send_alert(args.severity, args.cve, args.count, args.message)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

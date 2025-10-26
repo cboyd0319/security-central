@@ -3,12 +3,14 @@
 Automatically create PRs to fix security vulnerabilities.
 """
 
-import json
-import subprocess
-import os
 import argparse
-from typing import Dict, List, Optional, Any
+import json
+import os
+import subprocess
 from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from utils import safe_open
 
 
 class AutoPatcher:
@@ -25,7 +27,7 @@ class AutoPatcher:
             gh_token: GitHub personal access token
         """
         self.gh_token: str = gh_token
-        os.environ['GH_TOKEN'] = gh_token
+        os.environ["GH_TOKEN"] = gh_token
 
     def _cleanup_branch(self, branch_name: str) -> None:
         """Clean up by switching to main and deleting the branch.
@@ -34,21 +36,13 @@ class AutoPatcher:
             branch_name: Name of the branch to delete
         """
         try:
-            subprocess.run(
-                ['git', 'checkout', 'main'],
-                check=True,
-                capture_output=True,
-                timeout=30
-            )
+            subprocess.run(["git", "checkout", "main"], check=True, capture_output=True, timeout=30)
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             print(f"    ⚠️  Warning: Failed to checkout main: {e}")
 
         try:
             subprocess.run(
-                ['git', 'branch', '-D', branch_name],
-                check=True,
-                capture_output=True,
-                timeout=30
+                ["git", "branch", "-D", branch_name], check=True, capture_output=True, timeout=30
             )
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             print(f"    ⚠️  Warning: Failed to delete branch {branch_name}: {e}")
@@ -60,13 +54,13 @@ class AutoPatcher:
             triage_file: Path to triage JSON file with auto-fix recommendations
             auto_merge_safe_only: If True, only create PRs marked as safe to auto-merge
         """
-        with open(triage_file) as f:
+        with safe_open(triage_file, allowed_base=False) as f:
             triage: Dict[str, Any] = json.load(f)
 
-        auto_fixes: List[Dict[str, Any]] = triage.get('auto_fixes', [])
+        auto_fixes: List[Dict[str, Any]] = triage.get("auto_fixes", [])
 
         if auto_merge_safe_only:
-            auto_fixes = [f for f in auto_fixes if f.get('auto_merge_safe', False)]
+            auto_fixes = [f for f in auto_fixes if f.get("auto_merge_safe", False)]
 
         print(f"\n🔧 Creating {len(auto_fixes)} patch PRs...")
 
@@ -82,10 +76,10 @@ class AutoPatcher:
         Args:
             fix: Fix dictionary containing package, CVE, severity, and version info
         """
-        repo_name: str = fix['repo']
-        package: str = fix.get('package', 'unknown')
-        cve: str = fix.get('cve', 'SECURITY')
-        branch_name: str = f"security/auto-patch-{package}-{cve}".replace('/', '-')[:100]
+        repo_name: str = fix["repo"]
+        package: str = fix.get("package", "unknown")
+        cve: str = fix.get("cve", "SECURITY")
+        branch_name: str = f"security/auto-patch-{package}-{cve}".replace("/", "-")[:100]
 
         print(f"\n  📝 {repo_name}: {package} ({cve})")
 
@@ -95,146 +89,154 @@ class AutoPatcher:
         # Check if branch already exists
         try:
             existing_branches_result = subprocess.run(
-                ['git', 'branch', '-r'],
-                capture_output=True,
-                text=True,
-                check=True,
-                timeout=30
+                ["git", "branch", "-r"], capture_output=True, text=True, check=True, timeout=30
             )
             existing_branches = existing_branches_result.stdout
         except subprocess.CalledProcessError as e:
             print(f"    ❌ Failed to check existing branches: {e.stderr}")
-            os.chdir('../..')
+            os.chdir("../..")
             return
         except subprocess.TimeoutExpired:
             print(f"    ❌ Timeout checking branches")
-            os.chdir('../..')
+            os.chdir("../..")
             return
 
         if branch_name in existing_branches:
             print(f"    ⏭️  PR already exists for this fix")
-            os.chdir('../..')
+            os.chdir("../..")
             return
 
         # Create branch
         try:
             subprocess.run(
-                ['git', 'checkout', '-b', branch_name],
-                check=True,
-                capture_output=True,
-                timeout=30
+                ["git", "checkout", "-b", branch_name], check=True, capture_output=True, timeout=30
             )
         except subprocess.CalledProcessError as e:
-            print(f"    ❌ Failed to create branch {branch_name}: {e.stderr.decode() if e.stderr else 'unknown error'}")
-            os.chdir('../..')
+            print(
+                f"    ❌ Failed to create branch {branch_name}: {e.stderr.decode() if e.stderr else 'unknown error'}"
+            )
+            os.chdir("../..")
             return
 
         # Apply fix based on ecosystem
         try:
-            if fix['type'] == 'python_dependency':
+            if fix["type"] == "python_dependency":
                 self.fix_python_dependency(fix)
-            elif fix['type'] == 'npm_dependency':
+            elif fix["type"] == "npm_dependency":
                 self.fix_npm_dependency(fix)
-            elif fix['type'] == 'jvm_dependency':
+            elif fix["type"] == "jvm_dependency":
                 self.fix_jvm_dependency(fix)
             else:
                 print(f"    ⏭️  Unsupported fix type: {fix['type']}")
                 self._cleanup_branch(branch_name)
-                os.chdir('../..')
+                os.chdir("../..")
                 return
         except Exception as e:
             print(f"    ❌ Fix failed: {e}")
             self._cleanup_branch(branch_name)
-            os.chdir('../..')
+            os.chdir("../..")
             return
 
         # Check if changes were made
         try:
             status: subprocess.CompletedProcess[str] = subprocess.run(
-                ['git', 'status', '--porcelain'],
+                ["git", "status", "--porcelain"],
                 capture_output=True,
                 text=True,
                 check=True,
-                timeout=30
+                timeout=30,
             )
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             print(f"    ❌ Failed to check git status: {e}")
             self._cleanup_branch(branch_name)
-            os.chdir('../..')
+            os.chdir("../..")
             return
 
         if not status.stdout.strip():
             print(f"    ⏭️  No changes needed")
             self._cleanup_branch(branch_name)
-            os.chdir('../..')
+            os.chdir("../..")
             return
 
         # Commit changes
         commit_msg: str = self.generate_commit_message(fix)
         try:
-            subprocess.run(['git', 'add', '.'], check=True, timeout=30)
+            subprocess.run(["git", "add", "."], check=True, timeout=30)
             subprocess.run(
-                ['git', 'commit', '-m', commit_msg],
-                check=True,
-                capture_output=True,
-                timeout=30
+                ["git", "commit", "-m", commit_msg], check=True, capture_output=True, timeout=30
             )
         except subprocess.CalledProcessError as e:
-            print(f"    ❌ Failed to commit changes: {e.stderr.decode() if e.stderr else 'unknown error'}")
+            print(
+                f"    ❌ Failed to commit changes: {e.stderr.decode() if e.stderr else 'unknown error'}"
+            )
             self._cleanup_branch(branch_name)
-            os.chdir('../..')
+            os.chdir("../..")
             return
         except subprocess.TimeoutExpired:
             print(f"    ❌ Timeout during commit")
             self._cleanup_branch(branch_name)
-            os.chdir('../..')
+            os.chdir("../..")
             return
 
         # Push branch
         try:
             subprocess.run(
-                ['git', 'push', 'origin', branch_name],
+                ["git", "push", "origin", branch_name],
                 check=True,
                 capture_output=True,
-                timeout=120  # Longer timeout for network operation
+                timeout=120,  # Longer timeout for network operation
             )
         except subprocess.CalledProcessError as e:
-            print(f"    ❌ Failed to push branch: {e.stderr.decode() if e.stderr else 'unknown error'}")
+            print(
+                f"    ❌ Failed to push branch: {e.stderr.decode() if e.stderr else 'unknown error'}"
+            )
             self._cleanup_branch(branch_name)
-            os.chdir('../..')
+            os.chdir("../..")
             return
         except subprocess.TimeoutExpired:
             print(f"    ❌ Timeout pushing to remote")
             self._cleanup_branch(branch_name)
-            os.chdir('../..')
+            os.chdir("../..")
             return
 
         # Create PR
         pr_body: str = self.generate_pr_body(fix)
         pr_title: str = f"security: fix {cve} in {package}"
 
-        result: subprocess.CompletedProcess[str] = subprocess.run([
-            'gh', 'pr', 'create',
-            '--title', pr_title,
-            '--body', pr_body,
-            '--label', 'security,automated',
-            '--assignee', '@me'
-        ], capture_output=True, text=True)
+        result: subprocess.CompletedProcess[str] = subprocess.run(
+            [
+                "gh",
+                "pr",
+                "create",
+                "--title",
+                pr_title,
+                "--body",
+                pr_body,
+                "--label",
+                "security,automated",
+                "--assignee",
+                "@me",
+            ],
+            capture_output=True,
+            text=True,
+        )
 
         if result.returncode == 0:
             print(f"    ✅ PR created")
 
             # Auto-merge if safe
-            if fix.get('auto_merge_safe'):
+            if fix.get("auto_merge_safe"):
                 pr_url: str = result.stdout.strip()
-                pr_number: str = pr_url.split('/')[-1]
+                pr_number: str = pr_url.split("/")[-1]
 
                 # Enable auto-merge (requires PR checks to pass)
                 try:
-                    subprocess.run([
-                        'gh', 'pr', 'merge', pr_number,
-                        '--auto', '--squash'
-                    ], check=True, capture_output=True, timeout=30)
+                    subprocess.run(
+                        ["gh", "pr", "merge", pr_number, "--auto", "--squash"],
+                        check=True,
+                        capture_output=True,
+                        timeout=30,
+                    )
                     print(f"    🤖 Auto-merge enabled (will merge after CI passes)")
                 except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
                     print(f"    ⚠️  Auto-merge failed (requires repo settings): {e}")
@@ -243,15 +245,10 @@ class AutoPatcher:
 
         # Return to main branch
         try:
-            subprocess.run(
-                ['git', 'checkout', 'main'],
-                check=True,
-                capture_output=True,
-                timeout=30
-            )
+            subprocess.run(["git", "checkout", "main"], check=True, capture_output=True, timeout=30)
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             print(f"    ⚠️  Warning: Failed to return to main branch: {e}")
-        os.chdir('../..')
+        os.chdir("../..")
 
     def fix_python_dependency(self, fix: Dict[str, Any]) -> None:
         """Update Python dependency to fixed version.
@@ -262,27 +259,27 @@ class AutoPatcher:
         Raises:
             ValueError: If no fixed version available or package not found
         """
-        package: str = fix['package']
-        fixed_version: str = fix.get('fixed_in', [''])[0]
+        package: str = fix["package"]
+        fixed_version: str = fix.get("fixed_in", [""])[0]
 
         if not fixed_version:
             raise ValueError(f"No fixed version available for {package}")
 
         # Update requirements.txt
         req_files: List[str] = [
-            'requirements.txt',
-            'requirements-dev.txt',
-            'requirements/prod.txt',
-            'requirements/dev.txt'
+            "requirements.txt",
+            "requirements-dev.txt",
+            "requirements/prod.txt",
+            "requirements/dev.txt",
         ]
 
         updated: bool = False
         for req_file in req_files:
             if os.path.exists(req_file):
-                with open(req_file, 'r') as f:
+                with safe_open(req_file, "r", allowed_base=False) as f:
                     lines = f.readlines()
 
-                with open(req_file, 'w') as f:
+                with safe_open(req_file, "w", allowed_base=False) as f:
                     for line in lines:
                         if line.strip().startswith(package):
                             # Update version
@@ -292,19 +289,20 @@ class AutoPatcher:
                             f.write(line)
 
         # Update pyproject.toml if it exists
-        if os.path.exists('pyproject.toml'):
-            with open('pyproject.toml', 'r') as f:
+        if os.path.exists("pyproject.toml"):
+            with safe_open("pyproject.toml", "r", allowed_base=False) as f:
                 content = f.read()
 
             # Simple string replacement (not perfect but good enough)
             import re
-            pattern = f'("{package}.*?")|(\'{package}.*?\')'
+
+            pattern = f"(\"{package}.*?\")|('{package}.*?')"
             replacement = f'"{package}>={fixed_version}"'
 
             new_content = re.sub(pattern, replacement, content)
 
             if new_content != content:
-                with open('pyproject.toml', 'w') as f:
+                with safe_open("pyproject.toml", "w", allowed_base=False) as f:
                     f.write(new_content)
                 updated = True
 
@@ -320,19 +318,24 @@ class AutoPatcher:
         Raises:
             ValueError: If no fixed version available or npm install fails
         """
-        package: str = fix['package']
-        fixed_version: str = fix.get('fixed_in', '')
+        package: str = fix["package"]
+        fixed_version: str = fix.get("fixed_in", "")
 
         if not fixed_version:
             raise ValueError(f"No fixed version available for {package}")
 
         # Use npm to update
         try:
-            subprocess.run([
-                'npm', 'install', f"{package}@{fixed_version}"
-            ], check=True, capture_output=True, timeout=300)  # 5 min for npm
+            subprocess.run(
+                ["npm", "install", f"{package}@{fixed_version}"],
+                check=True,
+                capture_output=True,
+                timeout=300,
+            )  # 5 min for npm
         except subprocess.CalledProcessError as e:
-            raise ValueError(f"npm install failed: {e.stderr.decode() if e.stderr else 'unknown error'}")
+            raise ValueError(
+                f"npm install failed: {e.stderr.decode() if e.stderr else 'unknown error'}"
+            )
         except subprocess.TimeoutExpired:
             raise ValueError(f"npm install timed out after 5 minutes")
 
@@ -358,9 +361,9 @@ class AutoPatcher:
         Returns:
             Formatted commit message with CVE, severity, and version info
         """
-        package: str = fix.get('package', 'dependency')
-        cve: str = fix.get('cve', 'security issue')
-        severity: str = fix.get('severity', 'UNKNOWN')
+        package: str = fix.get("package", "dependency")
+        cve: str = fix.get("cve", "security issue")
+        severity: str = fix.get("severity", "UNKNOWN")
 
         msg = f"""security: update {package} to fix {cve}
 
@@ -384,12 +387,12 @@ Auto-merge safe: {fix.get('auto_merge_safe', False)}
         Returns:
             Markdown-formatted PR body with CVE details and testing checklist
         """
-        package: str = fix.get('package', 'dependency')
-        cve: str = fix.get('cve', 'N/A')
-        severity: str = fix.get('severity', 'UNKNOWN')
-        current_version: str = fix.get('version', 'unknown')
-        fixed_version: str = fix.get('fixed_in', ['unknown'])[0]
-        advisory: str = fix.get('advisory', 'No advisory available.')
+        package: str = fix.get("package", "dependency")
+        cve: str = fix.get("cve", "N/A")
+        severity: str = fix.get("severity", "UNKNOWN")
+        current_version: str = fix.get("version", "unknown")
+        fixed_version: str = fix.get("fixed_in", ["unknown"])[0]
+        advisory: str = fix.get("advisory", "No advisory available.")
 
         body = f"""## 🔒 Security Update
 
@@ -431,14 +434,17 @@ Fix confidence: {fix.get('fix_confidence', 0)}/10
 def main() -> None:
     """Main entry point for auto-patcher CLI."""
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
-        description='Create security patch PRs'
+        description="Create security patch PRs"
     )
-    parser.add_argument('triage_file', help='Triage JSON file')
-    parser.add_argument('--auto-merge-safe-only', action='store_true',
-                        help='Only create PRs for auto-merge safe fixes')
+    parser.add_argument("triage_file", help="Triage JSON file")
+    parser.add_argument(
+        "--auto-merge-safe-only",
+        action="store_true",
+        help="Only create PRs for auto-merge safe fixes",
+    )
     args: argparse.Namespace = parser.parse_args()
 
-    gh_token: Optional[str] = os.environ.get('GH_TOKEN')
+    gh_token: Optional[str] = os.environ.get("GH_TOKEN")
     if not gh_token:
         print("⚠️  WARNING: GH_TOKEN environment variable not set")
         print("   PR creation will be skipped. This is expected during initial setup.")
@@ -449,5 +455,5 @@ def main() -> None:
     patcher.create_prs(args.triage_file, args.auto_merge_safe_only)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

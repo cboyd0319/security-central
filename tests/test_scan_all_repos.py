@@ -1,14 +1,15 @@
 """Tests for scan_all_repos.py"""
 
-import pytest
 import json
-import sys
 import os
-from pathlib import Path
-from unittest.mock import patch, MagicMock
 import subprocess
+import sys
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+import pytest
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from scripts.scan_all_repos import MultiRepoScanner
 
@@ -56,7 +57,7 @@ class TestMultiRepoScanner:
         assert scanner.severity_to_sarif_level("LOW") == "note"
         assert scanner.severity_to_sarif_level("UNKNOWN") == "warning"
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_scan_python_pip_audit_success(self, mock_run, scanner, tmp_path):
         """Test Python scanning with pip-audit."""
         # Create a fake requirements.txt
@@ -75,17 +76,15 @@ class TestMultiRepoScanner:
                             "id": "CVE-2024-12345",
                             "severity": "HIGH",
                             "description": "Test vulnerability",
-                            "fix_versions": ["2.28.2"]
+                            "fix_versions": ["2.28.2"],
                         }
-                    ]
+                    ],
                 }
             ]
         }
 
         mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout=json.dumps(mock_audit_result),
-            stderr=""
+            returncode=0, stdout=json.dumps(mock_audit_result), stderr=""
         )
 
         findings = scanner.scan_python(str(repo_dir), "test-repo")
@@ -95,7 +94,7 @@ class TestMultiRepoScanner:
         assert findings[0]["severity"] == "HIGH"
         assert findings[0]["tool"] == "pip-audit"
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_scan_python_handles_errors(self, mock_run, scanner, tmp_path):
         """Test Python scanning handles subprocess errors gracefully."""
         repo_dir = tmp_path / "test-repo"
@@ -103,7 +102,7 @@ class TestMultiRepoScanner:
         (repo_dir / "requirements.txt").write_text("requests==2.28.0\n")
 
         # Mock subprocess failure
-        mock_run.side_effect = subprocess.TimeoutExpired('pip-audit', 120)
+        mock_run.side_effect = subprocess.TimeoutExpired("pip-audit", 120)
 
         findings = scanner.scan_python(str(repo_dir), "test-repo")
 
@@ -120,7 +119,7 @@ class TestMultiRepoScanner:
         # Should return empty list
         assert findings == []
 
-    @patch('pathlib.Path.glob')
+    @patch("pathlib.Path.glob")
     def test_scan_npm_no_package_json(self, mock_glob, scanner, tmp_path):
         """Test npm scanning when package.json doesn't exist."""
         repo_dir = tmp_path / "test-repo"
@@ -168,18 +167,14 @@ class TestScanIntegration:
 
         return repos_dir
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_scan_all_self_scan_fallback(self, mock_run, temp_config_dir):
         """Test that scanner falls back to self-scan when no repos exist."""
         config_file = temp_config_dir / "repos.yml"
         scanner = MultiRepoScanner(str(config_file))
 
         # Mock empty pip-audit response
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout='{"dependencies": []}',
-            stderr=""
-        )
+        mock_run.return_value = MagicMock(returncode=0, stdout='{"dependencies": []}', stderr="")
 
         result = scanner.scan_all()
 

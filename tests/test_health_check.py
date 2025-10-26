@@ -5,17 +5,18 @@ Comprehensive tests for scripts/health_check.py
 Tests environment health checking functionality.
 """
 
-import pytest
 import json
-import tempfile
 import os
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
 import sys
+import tempfile
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
-from health_check import HealthCheckResult, HealthChecker, main
+from health_check import HealthChecker, HealthCheckResult, main
 
 
 class TestHealthCheckResult:
@@ -24,10 +25,7 @@ class TestHealthCheckResult:
     def test_create_passing_result(self):
         """Test creating passing health check result."""
         result = HealthCheckResult(
-            name="test_check",
-            passed=True,
-            message="All good",
-            category="config"
+            name="test_check", passed=True, message="All good", category="config"
         )
 
         assert result.name == "test_check"
@@ -38,11 +36,7 @@ class TestHealthCheckResult:
     def test_create_failing_result(self):
         """Test creating failing health check result."""
         result = HealthCheckResult(
-            name="test_check",
-            passed=False,
-            message="Failed",
-            category="security",
-            warning=False
+            name="test_check", passed=False, message="Failed", category="security", warning=False
         )
 
         assert result.passed is False
@@ -53,11 +47,7 @@ class TestHealthCheckResult:
     def test_create_warning_result(self):
         """Test creating warning health check result."""
         result = HealthCheckResult(
-            name="test_check",
-            passed=False,
-            message="Warning",
-            category="tools",
-            warning=True
+            name="test_check", passed=False, message="Warning", category="tools", warning=True
         )
 
         assert result.is_warning() is True
@@ -66,11 +56,7 @@ class TestHealthCheckResult:
     def test_result_with_details(self):
         """Test result with additional details."""
         result = HealthCheckResult(
-            name="test",
-            passed=True,
-            message="OK",
-            category="test",
-            details="Extra info"
+            name="test", passed=True, message="OK", category="test", details="Extra info"
         )
 
         assert result.details == "Extra info"
@@ -89,7 +75,7 @@ class TestHealthChecker:
         checker = HealthChecker(verbose=True)
 
         assert checker.verbose is True
-        assert hasattr(checker, 'results')
+        assert hasattr(checker, "results")
         assert len(checker.results) == 0
 
     def test_init_non_verbose(self):
@@ -98,23 +84,36 @@ class TestHealthChecker:
 
         assert checker.verbose is False
 
-    @patch.object(HealthChecker, '_check_config_files')
-    @patch.object(HealthChecker, '_check_config_validity')
-    @patch.object(HealthChecker, '_check_python_version')
-    @patch.object(HealthChecker, '_check_required_packages')
-    @patch.object(HealthChecker, '_print_summary')
-    def test_run_all_checks_basic(self, mock_summary, mock_packages, mock_python,
-                                   mock_validity, mock_config, health_checker):
+    @patch.object(HealthChecker, "_check_config_files")
+    @patch.object(HealthChecker, "_check_config_validity")
+    @patch.object(HealthChecker, "_check_python_version")
+    @patch.object(HealthChecker, "_check_required_packages")
+    @patch.object(HealthChecker, "_print_summary")
+    def test_run_all_checks_basic(
+        self,
+        mock_summary,
+        mock_packages,
+        mock_python,
+        # TODO: Add docstring
+        mock_validity,
+        mock_config,
+        health_checker,
+    ):
         """Test running all health checks."""
         # Mock all check methods to avoid actual system checks
-        with patch.object(health_checker, '_check_security_tools'), \
-             patch.object(health_checker, '_check_directory_structure'), \
-             patch.object(health_checker, '_check_permissions'), \
-             patch.object(health_checker, '_check_github_token'), \
-             patch.object(health_checker, '_check_git_config'), \
-             patch.object(health_checker, '_check_cloned_repos'), \
-             patch.object(health_checker, '_check_recent_scans'), \
-             patch.object(health_checker, '_check_metrics'):
+        with patch.object(health_checker, "_check_security_tools"), patch.object(
+            health_checker, "_check_directory_structure"
+        ), patch.object(health_checker, "_check_permissions"), patch.object(
+            health_checker, "_check_github_token"
+        ), patch.object(
+            health_checker, "_check_git_config"
+        ), patch.object(
+            health_checker, "_check_cloned_repos"
+        ), patch.object(
+            health_checker, "_check_recent_scans"
+        ), patch.object(
+            health_checker, "_check_metrics"
+        ):
 
             result = health_checker.run_all_checks()
 
@@ -131,7 +130,7 @@ class TestHealthChecker:
             # Should add results
             assert len(health_checker.results) > 0
 
-    @patch('health_check.Path.exists')
+    @patch("health_check.Path.exists")
     def test_check_config_files_present(self, mock_exists, health_checker):
         """Test config files check with files present."""
         mock_exists.return_value = True
@@ -141,16 +140,16 @@ class TestHealthChecker:
         # Should have results
         assert len(health_checker.results) > 0
 
-    @patch('sys.version_info', (3, 12, 0))
+    @patch("sys.version_info", (3, 12, 0))
     def test_check_python_version_correct(self, health_checker):
         """Test Python version check with correct version."""
         health_checker._check_python_version()
 
         # Should pass
-        results = [r for r in health_checker.results if 'Python' in r.name]
+        results = [r for r in health_checker.results if "Python" in r.name]
         assert len(results) > 0
 
-    @patch('health_check.subprocess.run')
+    @patch("health_check.subprocess.run")
     def test_check_required_packages(self, mock_run, health_checker):
         """Test required packages check."""
         mock_result = Mock()
@@ -162,7 +161,7 @@ class TestHealthChecker:
 
         assert len(health_checker.results) > 0
 
-    @patch('health_check.subprocess.run')
+    @patch("health_check.subprocess.run")
     def test_check_security_tools_available(self, mock_run, health_checker):
         """Test security tools check when tools available."""
         mock_result = Mock()
@@ -173,7 +172,7 @@ class TestHealthChecker:
 
         assert len(health_checker.results) > 0
 
-    @patch('health_check.subprocess.run')
+    @patch("health_check.subprocess.run")
     def test_check_security_tools_missing(self, mock_run, health_checker):
         """Test security tools check when tools missing."""
         mock_run.side_effect = FileNotFoundError()
@@ -189,19 +188,19 @@ class TestHealthChecker:
             os.chdir(tmpdir)
 
             # Create some directories
-            Path('config').mkdir()
-            Path('scripts').mkdir()
+            Path("config").mkdir()
+            Path("scripts").mkdir()
 
             health_checker._check_directory_structure()
 
             assert len(health_checker.results) > 0
 
-    @patch.dict(os.environ, {'GITHUB_TOKEN': 'test-token'})
+    @patch.dict(os.environ, {"GITHUB_TOKEN": "test-token"})
     def test_check_github_token_present(self, health_checker):
         """Test GitHub token check when token present."""
         health_checker._check_github_token()
 
-        results = [r for r in health_checker.results if 'GitHub' in r.name]
+        results = [r for r in health_checker.results if "GitHub" in r.name]
         assert len(results) > 0
 
     @patch.dict(os.environ, {}, clear=True)
@@ -209,10 +208,10 @@ class TestHealthChecker:
         """Test GitHub token check when token missing."""
         health_checker._check_github_token()
 
-        results = [r for r in health_checker.results if 'GitHub' in r.name]
+        results = [r for r in health_checker.results if "GitHub" in r.name]
         assert len(results) > 0
 
-    @patch('health_check.subprocess.run')
+    @patch("health_check.subprocess.run")
     def test_check_git_config(self, mock_run, health_checker):
         """Test git config check."""
         mock_result = Mock()
@@ -228,10 +227,10 @@ class TestHealthChecker:
         """Test exporting results to JSON."""
         health_checker.results = [
             HealthCheckResult("test1", True, "Pass", "config"),
-            HealthCheckResult("test2", False, "Fail", "security", warning=True)
+            HealthCheckResult("test2", False, "Fail", "security", warning=True),
         ]
 
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
             output_file = f.name
 
         try:
@@ -242,19 +241,17 @@ class TestHealthChecker:
             with open(output_file) as f:
                 data = json.load(f)
 
-            assert 'checks' in data
-            assert 'summary' in data
-            assert len(data['checks']) == 2
+            assert "checks" in data
+            assert "summary" in data
+            assert len(data["checks"]) == 2
         finally:
             Path(output_file).unlink()
 
     def test_export_results_structure(self, health_checker):
         """Test that exported results have correct structure."""
-        health_checker.results = [
-            HealthCheckResult("test", True, "OK", "config")
-        ]
+        health_checker.results = [HealthCheckResult("test", True, "OK", "config")]
 
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
             output_file = f.name
 
         try:
@@ -263,11 +260,11 @@ class TestHealthChecker:
             with open(output_file) as f:
                 data = json.load(f)
 
-            assert 'summary' in data
-            assert 'total_checks' in data['summary']
-            assert 'passed' in data['summary']
-            assert 'failed' in data['summary']
-            assert 'warnings' in data['summary']
+            assert "summary" in data
+            assert "total_checks" in data["summary"]
+            assert "passed" in data["summary"]
+            assert "failed" in data["summary"]
+            assert "warnings" in data["summary"]
         finally:
             Path(output_file).unlink()
 
@@ -275,8 +272,8 @@ class TestHealthChecker:
 class TestMain:
     """Test main function."""
 
-    @patch('health_check.HealthChecker')
-    @patch('sys.argv', ['health_check.py'])
+    @patch("health_check.HealthChecker")
+    @patch("sys.argv", ["health_check.py"])
     def test_main_basic(self, mock_checker_class):
         """Test main function basic execution."""
         mock_checker = Mock()
@@ -289,8 +286,8 @@ class TestMain:
         except SystemExit:
             pass
 
-    @patch('health_check.HealthChecker')
-    @patch('sys.argv', ['health_check.py', '--verbose'])
+    @patch("health_check.HealthChecker")
+    @patch("sys.argv", ["health_check.py", "--verbose"])
     def test_main_verbose(self, mock_checker_class):
         """Test main with verbose flag."""
         mock_checker = Mock()
@@ -305,8 +302,8 @@ class TestMain:
         # Should create checker with verbose=True
         mock_checker_class.assert_called()
 
-    @patch('health_check.HealthChecker')
-    @patch('sys.argv', ['health_check.py', '--export', 'results.json'])
+    @patch("health_check.HealthChecker")
+    @patch("sys.argv", ["health_check.py", "--export", "results.json"])
     def test_main_export(self, mock_checker_class):
         """Test main with export option."""
         mock_checker = Mock()
@@ -328,18 +325,20 @@ class TestIntegration:
             os.chdir(tmpdir)
 
             # Create minimal environment
-            Path('config').mkdir()
-            Path('scripts').mkdir()
-            Path('tests').mkdir()
+            Path("config").mkdir()
+            Path("scripts").mkdir()
+            Path("tests").mkdir()
 
             checker = HealthChecker(verbose=False)
 
             # Mock some checks that require external tools
-            with patch.object(checker, '_check_security_tools'), \
-                 patch.object(checker, '_check_git_config'), \
-                 patch.object(checker, '_check_cloned_repos'), \
-                 patch.object(checker, '_check_recent_scans'), \
-                 patch.object(checker, '_check_metrics'):
+            with patch.object(checker, "_check_security_tools"), patch.object(
+                checker, "_check_git_config"
+            ), patch.object(checker, "_check_cloned_repos"), patch.object(
+                checker, "_check_recent_scans"
+            ), patch.object(
+                checker, "_check_metrics"
+            ):
 
                 result = checker.run_all_checks()
 
@@ -355,10 +354,10 @@ class TestIntegration:
         checker.results = [
             HealthCheckResult("config_check", True, "Config OK", "config"),
             HealthCheckResult("tool_check", False, "Tool missing", "tools", warning=True),
-            HealthCheckResult("security_check", False, "Security issue", "security", warning=False)
+            HealthCheckResult("security_check", False, "Security issue", "security", warning=False),
         ]
 
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
             output_file = f.name
 
         try:
@@ -368,16 +367,16 @@ class TestIntegration:
                 data = json.load(f)
 
             # Verify complete structure
-            assert data['summary']['total_checks'] == 3
-            assert data['summary']['passed'] == 1
-            assert data['summary']['failed'] == 1
-            assert data['summary']['warnings'] == 1
+            assert data["summary"]["total_checks"] == 3
+            assert data["summary"]["passed"] == 1
+            assert data["summary"]["failed"] == 1
+            assert data["summary"]["warnings"] == 1
 
             # Verify check details
-            assert len(data['checks']) == 3
-            assert all('name' in check for check in data['checks'])
-            assert all('passed' in check for check in data['checks'])
-            assert all('category' in check for check in data['checks'])
+            assert len(data["checks"]) == 3
+            assert all("name" in check for check in data["checks"])
+            assert all("passed" in check for check in data["checks"])
+            assert all("category" in check for check in data["checks"])
         finally:
             Path(output_file).unlink()
 
@@ -389,7 +388,7 @@ class TestEdgeCases:
         """Test exporting with no check results."""
         checker = HealthChecker()
 
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
             output_file = f.name
 
         try:
@@ -398,20 +397,17 @@ class TestEdgeCases:
             with open(output_file) as f:
                 data = json.load(f)
 
-            assert data['summary']['total_checks'] == 0
-            assert data['checks'] == []
+            assert data["summary"]["total_checks"] == 0
+            assert data["checks"] == []
         finally:
             Path(output_file).unlink()
 
     def test_all_checks_passing(self):
         """Test when all checks pass."""
         checker = HealthChecker()
-        checker.results = [
-            HealthCheckResult(f"check{i}", True, "Pass", "test")
-            for i in range(10)
-        ]
+        checker.results = [HealthCheckResult(f"check{i}", True, "Pass", "test") for i in range(10)]
 
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
             output_file = f.name
 
         try:
@@ -420,20 +416,17 @@ class TestEdgeCases:
             with open(output_file) as f:
                 data = json.load(f)
 
-            assert data['summary']['passed'] == 10
-            assert data['summary']['failed'] == 0
+            assert data["summary"]["passed"] == 10
+            assert data["summary"]["failed"] == 0
         finally:
             Path(output_file).unlink()
 
     def test_all_checks_failing(self):
         """Test when all checks fail."""
         checker = HealthChecker()
-        checker.results = [
-            HealthCheckResult(f"check{i}", False, "Fail", "test")
-            for i in range(5)
-        ]
+        checker.results = [HealthCheckResult(f"check{i}", False, "Fail", "test") for i in range(5)]
 
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
             output_file = f.name
 
         try:
@@ -442,7 +435,7 @@ class TestEdgeCases:
             with open(output_file) as f:
                 data = json.load(f)
 
-            assert data['summary']['passed'] == 0
-            assert data['summary']['failed'] == 5
+            assert data["summary"]["passed"] == 0
+            assert data["summary"]["failed"] == 5
         finally:
             Path(output_file).unlink()

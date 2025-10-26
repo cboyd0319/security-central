@@ -5,18 +5,20 @@ Performance metrics collection for security-central operations.
 Tracks execution time, success rates, and resource usage for all scanning operations.
 """
 
-import time
-import json
 import functools
-from pathlib import Path
+import json
+import time
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
-from typing import Dict, Any, Callable, Optional, TypeVar, ParamSpec
-from dataclasses import dataclass, asdict
+from pathlib import Path
+from typing import Any, Callable, Dict, Optional, ParamSpec, TypeVar
+
 import psutil
 
+from utils import safe_open
 
-P = ParamSpec('P')
-T = TypeVar('T')
+P = ParamSpec("P")
+T = TypeVar("T")
 
 
 @dataclass
@@ -35,6 +37,7 @@ class OperationMetrics:
         memory_usage_mb: Peak memory usage in MB
         cpu_percent: Average CPU usage percentage
     """
+
     operation_name: str
     start_time: str
     end_time: str
@@ -59,7 +62,7 @@ class MetricsCollector:
         metrics: List of collected metrics
     """
 
-    def __init__(self, metrics_file: str = 'metrics/performance.json') -> None:
+    def __init__(self, metrics_file: str = "metrics/performance.json") -> None:
         """Initialize metrics collector.
 
         Args:
@@ -82,7 +85,7 @@ class MetricsCollector:
         repo_name: Optional[str] = None,
         findings_count: Optional[int] = None,
         memory_mb: Optional[float] = None,
-        cpu_percent: Optional[float] = None
+        cpu_percent: Optional[float] = None,
     ) -> None:
         """Record metrics for a completed operation.
 
@@ -97,9 +100,9 @@ class MetricsCollector:
             cpu_percent: Average CPU usage percentage
         """
         now = datetime.now(timezone.utc).isoformat()
-        start_time = datetime.fromisoformat(now.replace('Z', '+00:00'))
+        start_time = datetime.fromisoformat(now.replace("Z", "+00:00"))
         start_time = start_time.replace(tzinfo=timezone.utc)
-        start_iso = (start_time.timestamp() - duration)
+        start_iso = start_time.timestamp() - duration
 
         metric = OperationMetrics(
             operation_name=operation_name,
@@ -111,7 +114,7 @@ class MetricsCollector:
             repo_name=repo_name,
             findings_count=findings_count,
             memory_usage_mb=round(memory_mb, 2) if memory_mb else None,
-            cpu_percent=round(cpu_percent, 2) if cpu_percent else None
+            cpu_percent=round(cpu_percent, 2) if cpu_percent else None,
         )
         self.metrics.append(metric)
 
@@ -122,9 +125,9 @@ class MetricsCollector:
         # Load existing metrics if file exists
         if self.metrics_file.exists():
             try:
-                with open(self.metrics_file) as f:
+                with safe_open(self.metrics_file, allowed_base=False) as f:
                     data = json.load(f)
-                    existing_metrics = data.get('operations', [])
+                    existing_metrics = data.get("operations", [])
             except (json.JSONDecodeError, KeyError):
                 existing_metrics = []
 
@@ -133,12 +136,12 @@ class MetricsCollector:
 
         # Save with metadata
         output = {
-            'last_updated': datetime.now(timezone.utc).isoformat(),
-            'total_operations': len(all_metrics),
-            'operations': all_metrics
+            "last_updated": datetime.now(timezone.utc).isoformat(),
+            "total_operations": len(all_metrics),
+            "operations": all_metrics,
         }
 
-        with open(self.metrics_file, 'w') as f:
+        with safe_open(self.metrics_file, "w", allowed_base=False) as f:
             json.dump(output, f, indent=2)
 
     def get_summary(self) -> Dict[str, Any]:
@@ -149,10 +152,10 @@ class MetricsCollector:
         """
         if not self.metrics:
             return {
-                'total_operations': 0,
-                'success_rate': 0.0,
-                'avg_duration': 0.0,
-                'total_findings': 0
+                "total_operations": 0,
+                "success_rate": 0.0,
+                "avg_duration": 0.0,
+                "total_findings": 0,
             }
 
         successful = [m for m in self.metrics if m.success]
@@ -162,20 +165,17 @@ class MetricsCollector:
         findings = [m.findings_count for m in self.metrics if m.findings_count is not None]
 
         return {
-            'total_operations': len(self.metrics),
-            'successful_operations': len(successful),
-            'failed_operations': len(failed),
-            'success_rate': round(len(successful) / len(self.metrics) * 100, 2),
-            'avg_duration_seconds': round(sum(durations) / len(durations), 2),
-            'min_duration_seconds': round(min(durations), 2),
-            'max_duration_seconds': round(max(durations), 2),
-            'total_findings': sum(findings),
-            'avg_findings_per_repo': round(sum(findings) / len(findings), 2) if findings else 0,
-            'operations_by_type': self._group_by_operation(),
-            'failures': [
-                {'operation': m.operation_name, 'error': m.error_message}
-                for m in failed
-            ]
+            "total_operations": len(self.metrics),
+            "successful_operations": len(successful),
+            "failed_operations": len(failed),
+            "success_rate": round(len(successful) / len(self.metrics) * 100, 2),
+            "avg_duration_seconds": round(sum(durations) / len(durations), 2),
+            "min_duration_seconds": round(min(durations), 2),
+            "max_duration_seconds": round(max(durations), 2),
+            "total_findings": sum(findings),
+            "avg_findings_per_repo": round(sum(findings) / len(findings), 2) if findings else 0,
+            "operations_by_type": self._group_by_operation(),
+            "failures": [{"operation": m.operation_name, "error": m.error_message} for m in failed],
         }
 
     def _group_by_operation(self) -> Dict[str, int]:
@@ -193,7 +193,7 @@ class MetricsCollector:
 def measure_performance(
     operation_name: str,
     collector: Optional[MetricsCollector] = None,
-    track_resources: bool = True
+    track_resources: bool = True,
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Decorator to measure function performance.
 
@@ -251,24 +251,28 @@ def measure_performance(
 
                     # Get final CPU sample
                     cpu_percent_values.append(process.cpu_percent(interval=0.1))
-                    cpu_avg = sum(cpu_percent_values) / len(cpu_percent_values) if cpu_percent_values else None
+                    cpu_avg = (
+                        sum(cpu_percent_values) / len(cpu_percent_values)
+                        if cpu_percent_values
+                        else None
+                    )
 
                 # Extract repo name and findings count if available
                 repo_name: Optional[str] = None
                 findings_count: Optional[int] = None
 
                 # Try to extract from args/kwargs
-                if 'repo_name' in kwargs:
-                    repo_name = kwargs['repo_name']
-                elif len(args) > 0 and hasattr(args[0], 'name'):
-                    repo_name = getattr(args[0], 'name')
+                if "repo_name" in kwargs:
+                    repo_name = kwargs["repo_name"]
+                elif len(args) > 0 and hasattr(args[0], "name"):
+                    repo_name = getattr(args[0], "name")
 
                 # Try to extract findings count from result
                 if result is not None:
                     if isinstance(result, list):
                         findings_count = len(result)
-                    elif isinstance(result, dict) and 'findings' in result:
-                        findings_count = len(result['findings'])
+                    elif isinstance(result, dict) and "findings" in result:
+                        findings_count = len(result["findings"])
 
                 collector.record_operation(
                     operation_name=operation_name,
@@ -278,7 +282,7 @@ def measure_performance(
                     repo_name=repo_name,
                     findings_count=findings_count,
                     memory_mb=memory_usage,
-                    cpu_percent=cpu_avg
+                    cpu_percent=cpu_avg,
                 )
 
                 # Auto-save metrics periodically
@@ -286,6 +290,7 @@ def measure_performance(
                     collector.save_metrics()
 
         return wrapper
+
     return decorator
 
 
@@ -310,7 +315,7 @@ class TimingContext:
         self.start_time: float = 0.0
         self.duration: float = 0.0
 
-    def __enter__(self) -> 'TimingContext':
+    def __enter__(self) -> "TimingContext":
         """Start timing."""
         self.start_time = time.time()
         return self
@@ -325,7 +330,7 @@ class TimingContext:
             operation_name=self.operation_name,
             duration=self.duration,
             success=success,
-            error=error_msg
+            error=error_msg,
         )
 
 
@@ -337,33 +342,35 @@ def print_metrics_summary(collector: MetricsCollector) -> None:
     """
     summary = collector.get_summary()
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("PERFORMANCE METRICS SUMMARY")
-    print("="*60)
+    print("=" * 60)
     print(f"Total Operations: {summary['total_operations']}")
     print(f"Success Rate: {summary['success_rate']}%")
     print(f"Average Duration: {summary['avg_duration_seconds']}s")
-    print(f"Duration Range: {summary['min_duration_seconds']}s - {summary['max_duration_seconds']}s")
+    print(
+        f"Duration Range: {summary['min_duration_seconds']}s - {summary['max_duration_seconds']}s"
+    )
 
-    if summary['total_findings'] > 0:
+    if summary["total_findings"] > 0:
         print(f"Total Findings: {summary['total_findings']}")
         print(f"Avg Findings/Repo: {summary['avg_findings_per_repo']}")
 
-    if summary['operations_by_type']:
+    if summary["operations_by_type"]:
         print("\nOperations by Type:")
-        for op_type, count in sorted(summary['operations_by_type'].items()):
+        for op_type, count in sorted(summary["operations_by_type"].items()):
             print(f"  {op_type}: {count}")
 
-    if summary['failures']:
+    if summary["failures"]:
         print("\nFailures:")
-        for failure in summary['failures']:
+        for failure in summary["failures"]:
             print(f"  ❌ {failure['operation']}: {failure['error']}")
 
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
 
 # Example usage
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Example 1: Using decorator
     collector = MetricsCollector()
 

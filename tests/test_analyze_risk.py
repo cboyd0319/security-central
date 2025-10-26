@@ -1,12 +1,13 @@
 """Tests for analyze_risk.py"""
 
-import pytest
 import json
-import sys
 import os
+import sys
 from pathlib import Path
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+import pytest
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from scripts.analyze_risk import RiskAnalyzer
 
@@ -36,7 +37,7 @@ class TestRiskAnalyzer:
             "type": "python_dependency",
             "package": "requests",
             "version": "2.28.0",
-            "fixed_in": ["2.28.2"]
+            "fixed_in": ["2.28.2"],
         }
 
         assert analyzer.is_auto_fixable(finding) is True
@@ -47,17 +48,14 @@ class TestRiskAnalyzer:
             "type": "python_dependency",
             "package": "requests",
             "version": "2.28.0",
-            "fixed_in": []
+            "fixed_in": [],
         }
 
         assert analyzer.is_auto_fixable(finding) is False
 
     def test_is_auto_fixable_code_quality_issue(self, analyzer):
         """Test that code quality issues are not auto-fixable."""
-        finding = {
-            "type": "powershell_code_quality",
-            "rule": "PSAvoidUsingPlainTextForPassword"
-        }
+        finding = {"type": "powershell_code_quality", "rule": "PSAvoidUsingPlainTextForPassword"}
 
         assert analyzer.is_auto_fixable(finding) is False
 
@@ -100,7 +98,7 @@ class TestRiskAnalyzer:
             "version": "2.28.0",
             "fixed_in": ["2.28.2"],
             "tool": "pip-audit",
-            "severity": "CRITICAL"
+            "severity": "CRITICAL",
         }
 
         confidence = analyzer.calculate_fix_confidence(finding)
@@ -116,7 +114,7 @@ class TestRiskAnalyzer:
             "version": "2.28.0",
             "fixed_in": ["2.29.0"],
             "tool": "safety",
-            "severity": "MEDIUM"
+            "severity": "MEDIUM",
         }
 
         confidence = analyzer.calculate_fix_confidence(finding)
@@ -132,7 +130,7 @@ class TestRiskAnalyzer:
             "version": "2.28.0",
             "fixed_in": ["3.0.0"],
             "tool": "other-tool",
-            "severity": "LOW"
+            "severity": "LOW",
         }
 
         confidence = analyzer.calculate_fix_confidence(finding)
@@ -147,7 +145,7 @@ class TestRiskAnalyzer:
             "fix_confidence": 9,
             "severity": "CRITICAL",
             "version": "2.28.0",
-            "fixed_in": ["2.28.2"]
+            "fixed_in": ["2.28.2"],
         }
 
         assert analyzer.is_safe_to_auto_merge(finding) is True
@@ -159,7 +157,7 @@ class TestRiskAnalyzer:
             "fix_confidence": 5,
             "severity": "MEDIUM",
             "version": "2.28.0",
-            "fixed_in": ["2.28.2"]
+            "fixed_in": ["2.28.2"],
         }
 
         assert analyzer.is_safe_to_auto_merge(finding) is False
@@ -171,7 +169,7 @@ class TestRiskAnalyzer:
             "fix_confidence": 8,
             "severity": "MEDIUM",
             "version": "2.28.0",
-            "fixed_in": ["2.28.2"]
+            "fixed_in": ["2.28.2"],
         }
 
         assert analyzer.is_safe_to_auto_merge(finding) is True
@@ -182,7 +180,7 @@ class TestRiskAnalyzer:
             "critical": [{"cve": "CVE-2024-1"}, {"cve": "CVE-2024-2"}],
             "high": [],
             "medium": [],
-            "low": []
+            "low": [],
         }
         auto_fixes = []
 
@@ -194,16 +192,11 @@ class TestRiskAnalyzer:
 
     def test_generate_recommendations_auto_merge_available(self, analyzer):
         """Test recommendations with auto-mergeable fixes."""
-        triaged = {
-            "critical": [],
-            "high": [],
-            "medium": [],
-            "low": []
-        }
+        triaged = {"critical": [], "high": [], "medium": [], "low": []}
         auto_fixes = [
             {"auto_merge_safe": True},
             {"auto_merge_safe": True},
-            {"auto_merge_safe": False}
+            {"auto_merge_safe": False},
         ]
 
         recommendations = analyzer.generate_recommendations(triaged, auto_fixes)

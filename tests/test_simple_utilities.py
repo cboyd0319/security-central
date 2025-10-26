@@ -12,12 +12,13 @@ Covers:
 - pre_vacation_hardening.py
 """
 
-import pytest
 import json
+import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-import sys
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
@@ -31,6 +32,7 @@ class TestCreateAuditIssues:
         # Basic test to ensure imports work
         try:
             from create_audit_issues import main
+
             assert callable(main)
         except ImportError:
             pytest.skip("create_audit_issues not fully implemented")
@@ -43,6 +45,7 @@ class TestSendWeeklyDigest:
         """Placeholder test for send_weekly_digest."""
         try:
             from send_weekly_digest import main
+
             assert callable(main)
         except ImportError:
             pytest.skip("send_weekly_digest not fully implemented")
@@ -55,6 +58,7 @@ class TestAnalyzeDependencyHealth:
         """Placeholder test for analyze_dependency_health."""
         try:
             from analyze_dependency_health import main
+
             assert callable(main)
         except ImportError:
             pytest.skip("analyze_dependency_health not fully implemented")
@@ -67,6 +71,7 @@ class TestGenerateWeeklySummary:
         """Placeholder test for generate_weekly_summary."""
         try:
             from generate_weekly_summary import main
+
             assert callable(main)
         except ImportError:
             pytest.skip("generate_weekly_summary not fully implemented")
@@ -79,6 +84,7 @@ class TestConsistencyChecker:
         """Placeholder test for consistency_checker."""
         try:
             from consistency_checker import main
+
             assert callable(main)
         except ImportError:
             pytest.skip("consistency_checker not fully implemented")
@@ -91,6 +97,7 @@ class TestComprehensiveAudit:
         """Placeholder test for comprehensive_audit."""
         try:
             from comprehensive_audit import main
+
             assert callable(main)
         except ImportError:
             pytest.skip("comprehensive_audit not fully implemented")
@@ -103,6 +110,7 @@ class TestPreVacationHardening:
         """Placeholder test for pre_vacation_hardening."""
         try:
             from pre_vacation_hardening import main
+
             assert callable(main)
         except ImportError:
             pytest.skip("pre_vacation_hardening not fully implemented")
@@ -116,6 +124,7 @@ class TestHousekeepingSyncCommonDeps:
         try:
             sys.path.insert(0, str(Path(__file__).parent.parent / "scripts" / "housekeeping"))
             from sync_common_deps import main
+
             assert callable(main)
         except ImportError:
             pytest.skip("sync_common_deps not fully implemented")
@@ -129,6 +138,7 @@ class TestHousekeepingSyncGitHubActions:
         try:
             sys.path.insert(0, str(Path(__file__).parent.parent / "scripts" / "housekeeping"))
             from sync_github_actions import main
+
             assert callable(main)
         except ImportError:
             pytest.skip("sync_github_actions not fully implemented")
@@ -142,6 +152,7 @@ class TestHousekeepingUpdateActionHashes:
         try:
             sys.path.insert(0, str(Path(__file__).parent.parent / "scripts" / "housekeeping"))
             from update_action_hashes import main
+
             assert callable(main)
         except ImportError:
             pytest.skip("update_action_hashes not fully implemented")
@@ -155,6 +166,7 @@ class TestIntelligenceDependencyGraph:
         try:
             sys.path.insert(0, str(Path(__file__).parent.parent / "scripts" / "intelligence"))
             from dependency_graph import main
+
             assert callable(main)
         except ImportError:
             pytest.skip("dependency_graph not fully implemented")
@@ -168,6 +180,7 @@ class TestMonitoringCIHealth:
         try:
             sys.path.insert(0, str(Path(__file__).parent.parent / "scripts" / "monitoring"))
             from ci_health import main
+
             assert callable(main)
         except ImportError:
             pytest.skip("ci_health not fully implemented")
@@ -176,16 +189,17 @@ class TestMonitoringCIHealth:
 class TestCreatePatchPRs:
     """Test create_patch_prs.py functionality."""
 
-    @patch('create_patch_prs.Github')
+    @patch("create_patch_prs.Github")
     def test_basic_import(self, mock_github):
         """Test that create_patch_prs can be imported."""
         try:
             from create_patch_prs import main
+
             assert callable(main)
         except ImportError:
             pytest.skip("create_patch_prs not available")
 
-    @patch('create_patch_prs.Github')
+    @patch("create_patch_prs.Github")
     def test_pr_creation_mock(self, mock_github):
         """Test PR creation with mocked GitHub."""
         try:
@@ -194,7 +208,7 @@ class TestCreatePatchPRs:
             mock_gh = Mock()
             mock_github.return_value = mock_gh
 
-            creator = PRCreator('fake-token')
-            assert hasattr(creator, 'gh')
+            creator = PRCreator("fake-token")
+            assert hasattr(creator, "gh")
         except (ImportError, AttributeError):
             pytest.skip("PRCreator not available")

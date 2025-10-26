@@ -1,9 +1,10 @@
 """Pytest configuration and shared fixtures."""
 
 import json
-import pytest
 from pathlib import Path
 from typing import Dict, List
+
+import pytest
 
 
 @pytest.fixture
@@ -20,7 +21,7 @@ def sample_findings() -> List[Dict]:
             "advisory": "Critical security vulnerability in requests",
             "fixed_in": ["2.28.2"],
             "tool": "pip-audit",
-            "file": "requirements.txt"
+            "file": "requirements.txt",
         },
         {
             "repo": "test-repo",
@@ -32,7 +33,7 @@ def sample_findings() -> List[Dict]:
             "advisory": "SQL injection vulnerability",
             "fixed_in": ["3.2.18"],
             "tool": "safety",
-            "file": "requirements.txt"
+            "file": "requirements.txt",
         },
         {
             "repo": "test-repo",
@@ -44,7 +45,7 @@ def sample_findings() -> List[Dict]:
             "advisory": "XSS vulnerability",
             "fixed_in": ["2.0.3"],
             "tool": "pip-audit",
-            "file": "requirements.txt"
+            "file": "requirements.txt",
         },
         {
             "repo": "test-repo",
@@ -56,8 +57,8 @@ def sample_findings() -> List[Dict]:
             "advisory": "Minor information disclosure",
             "fixed_in": ["7.4.0"],
             "tool": "safety",
-            "file": "requirements-dev.txt"
-        }
+            "file": "requirements-dev.txt",
+        },
     ]
 
 
@@ -75,9 +76,9 @@ def sample_repos_config() -> Dict:
                     "patch": True,
                     "minor": False,
                     "security": True,
-                    "breaking": False
+                    "breaking": False,
                 },
-                "notification_threshold": "HIGH"
+                "notification_threshold": "HIGH",
             },
             {
                 "name": "test-repo-2",
@@ -88,26 +89,19 @@ def sample_repos_config() -> Dict:
                     "patch": True,
                     "minor": False,
                     "security": True,
-                    "breaking": False
+                    "breaking": False,
                 },
-                "notification_threshold": "MEDIUM"
-            }
+                "notification_threshold": "MEDIUM",
+            },
         ],
         "notifications": {
-            "slack": {
-                "enabled": True,
-                "webhook_url_secret": "SLACK_SECURITY_WEBHOOK"
-            }
+            "slack": {"enabled": True, "webhook_url_secret": "SLACK_SECURITY_WEBHOOK"}
         },
         "safety_checks": {
             "require_ci_pass": True,
             "require_no_breaking_changes": True,
-            "max_version_jump": {
-                "major": 0,
-                "minor": 2,
-                "patch": 10
-            }
-        }
+            "max_version_jump": {"major": 0, "minor": 2, "patch": 10},
+        },
     }
 
 
@@ -116,23 +110,20 @@ def sample_security_config() -> Dict:
     """Sample security-central.yaml configuration."""
     return {
         "version": "1.0",
-        "project": {
-            "name": "security-central",
-            "owner": "test-user"
-        },
+        "project": {"name": "security-central", "owner": "test-user"},
         "scanning": {
             "schedule": "0 9 * * *",
             "parallel_scans": 4,
             "timeout_minutes": 30,
-            "fail_on_critical": True
+            "fail_on_critical": True,
         },
         "security_policies": {
             "max_critical_age_days": 1,
             "max_high_age_days": 7,
             "max_medium_age_days": 30,
             "block_on_secrets": True,
-            "require_sarif": True
-        }
+            "require_sarif": True,
+        },
     }
 
 
@@ -146,17 +137,12 @@ def temp_findings_file(tmp_path, sample_findings) -> Path:
         "findings": sample_findings,
         "summary": {
             "total_findings": len(sample_findings),
-            "by_severity": {
-                "CRITICAL": 1,
-                "HIGH": 1,
-                "MEDIUM": 1,
-                "LOW": 1
-            },
+            "by_severity": {"CRITICAL": 1, "HIGH": 1, "MEDIUM": 1, "LOW": 1},
             "critical_count": 1,
             "high_count": 1,
             "medium_count": 1,
-            "low_count": 1
-        }
+            "low_count": 1,
+        },
     }
     findings_file.write_text(json.dumps(findings_data, indent=2))
     return findings_file
@@ -170,6 +156,7 @@ def temp_config_dir(tmp_path, sample_repos_config, sample_security_config):
 
     # Write repos.yml
     import yaml
+
     repos_file = config_dir / "repos.yml"
     repos_file.write_text(yaml.dump(sample_repos_config))
 

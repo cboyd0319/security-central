@@ -44,6 +44,20 @@ Thumbs.db
 
 # Logs
 *.log
+logs/
+
+# Test & Coverage
+.coverage
+.pytest_cache/
+htmlcov/
+.tox/
+coverage.xml
+*.cover
+
+# PyGuard artifacts
+.pyguard_backups/
+pyguard_*.log
+pyguard_*.txt
 
 # Secrets (should be in GitHub Secrets, not files)
 .env
@@ -53,6 +67,7 @@ secrets.yml
 # Temporary files
 tmp/
 *.tmp
+/tmp/
 
 # Claude
 .claude
