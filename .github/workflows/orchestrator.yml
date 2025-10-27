@@ -145,7 +145,7 @@ jobs:
       # ❌ NO TOKEN NEEDED - just uploading files
       - name: Upload Artifacts
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.repo }}-scan-results
           path: |
