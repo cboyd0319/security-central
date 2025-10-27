@@ -92,7 +92,7 @@ jobs:
             --slack-webhook "$SLACK_WEBHOOK"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v5
         with:
           name: weekly-audit-${{ github.run_id }}
           path: |

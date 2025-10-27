@@ -127,7 +127,7 @@ jobs:
             --body "$(cat impact-assessment.json | python scripts/format_incident_report.py)"
 
       - name: Upload assessment
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v5
         with:
           name: emergency-assessment-${{ github.event.inputs.cve }}
           path: impact-assessment.json
